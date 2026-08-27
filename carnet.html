@@ -1,0 +1,576 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carnet de suivi — Club</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<style>
+  :root{
+    --paper:#FAF9F5;
+    --paper-line:#DFDBCF;
+    --ink:#1C1F1B;
+    --pitch:#1F4A38;
+    --pitch-deep:#153328;
+    --clay:#C87F3A;
+    --clay-soft:#F0DCC4;
+    --muted:#7A7668;
+    --danger:#A8442E;
+    --card:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image:
+      linear-gradient(var(--paper-line) 1px, transparent 1px);
+    background-size: 100% 44px;
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    padding:32px 20px 80px;
+  }
+  .wrap{max-width:920px;margin:0 auto;}
+
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    border-bottom:3px solid var(--ink);
+    padding-bottom:14px;
+    margin-bottom:28px;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  h1{
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:34px;
+    letter-spacing:0.5px;
+    margin:0;
+    text-transform:uppercase;
+    color:var(--pitch-deep);
+  }
+  h1 span{color:var(--clay);}
+  .subtitle{font-size:13px;color:var(--muted);margin-top:4px;}
+  .month-picker{
+    font-family:'Oswald',sans-serif;
+    font-size:15px;
+    padding:8px 14px;
+    border:2px solid var(--ink);
+    background:var(--card);
+    border-radius:2px;
+    cursor:pointer;
+  }
+
+  /* Scoreboard summary */
+  .scoreboard{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:2px;
+    background:var(--ink);
+    border-radius:4px;
+    overflow:hidden;
+    margin-bottom:32px;
+  }
+  .score-cell{
+    background:var(--pitch-deep);
+    color:var(--paper);
+    padding:16px 14px;
+    text-align:left;
+  }
+  .score-cell .label{
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:#9FC3B0;
+    margin-bottom:6px;
+  }
+  .score-cell .value{
+    font-family:'Oswald',sans-serif;
+    font-size:26px;
+    font-weight:600;
+  }
+  .score-cell.clay{background:var(--clay);}
+  .score-cell.clay .label{color:#FBEAD8;}
+  .score-cell.danger{background:var(--danger);}
+  .score-cell.danger .label{color:#F0D2CA;}
+
+  @media(max-width:640px){
+    .scoreboard{grid-template-columns:repeat(2,1fr);}
+  }
+
+  /* Form */
+  .panel{
+    background:var(--card);
+    border:1px solid var(--paper-line);
+    border-radius:4px;
+    padding:22px;
+    margin-bottom:28px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.04);
+  }
+  .panel h2{
+    font-family:'Oswald',sans-serif;
+    font-size:15px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:var(--pitch-deep);
+    margin:0 0 16px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .panel h2::before{
+    content:"";
+    width:16px;height:3px;
+    background:var(--clay);
+    display:inline-block;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:14px;
+  }
+  @media(max-width:700px){.grid{grid-template-columns:1fr 1fr;}}
+  .field{display:flex;flex-direction:column;gap:5px;}
+  .field.full{grid-column:1/-1;}
+  label{font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);font-weight:600;}
+  input,select{
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    padding:9px 10px;
+    border:1.5px solid var(--paper-line);
+    border-radius:3px;
+    background:#FEFDFB;
+    color:var(--ink);
+  }
+  input:focus,select:focus{outline:2px solid var(--pitch);outline-offset:1px;border-color:var(--pitch);}
+  .row-actions{display:flex;justify-content:flex-end;margin-top:18px;gap:10px;}
+  button{
+    font-family:'Oswald',sans-serif;
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    padding:11px 22px;
+    border-radius:3px;
+    border:none;
+    cursor:pointer;
+    font-weight:600;
+  }
+  .btn-primary{background:var(--pitch-deep);color:var(--paper);}
+  .btn-primary:hover{background:var(--pitch);}
+  .btn-ghost{background:transparent;color:var(--muted);border:1.5px solid var(--paper-line);}
+  .btn-ghost:hover{border-color:var(--ink);color:var(--ink);}
+
+  /* Entries list */
+  .entries h2{
+    font-family:'Oswald',sans-serif;
+    font-size:15px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:var(--pitch-deep);
+    margin:0 0 14px;
+  }
+  .entry{
+    background:var(--card);
+    border:1px solid var(--paper-line);
+    border-left:4px solid var(--pitch);
+    border-radius:3px;
+    padding:14px 16px;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .entry.statut-benevolat{border-left-color:var(--muted);}
+  .entry.statut-don{border-left-color:var(--clay);}
+  .entry.statut-joueur{border-left-color:#4A6FA5;}
+  .entry-main{flex:1;min-width:200px;}
+  .entry-date{font-family:'Oswald',sans-serif;font-size:13px;color:var(--muted);}
+  .entry-title{font-size:15px;font-weight:600;margin:2px 0 4px;}
+  .entry-meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;}
+  .tag{
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    padding:3px 8px;
+    border-radius:10px;
+    background:var(--clay-soft);
+    color:#8A5423;
+    font-weight:700;
+  }
+  .entry-amount{
+    font-family:'Oswald',sans-serif;
+    font-size:19px;
+    font-weight:600;
+    color:var(--pitch-deep);
+    min-width:80px;
+    text-align:right;
+  }
+  .entry-del{
+    background:none;border:none;color:var(--muted);
+    font-size:18px;cursor:pointer;padding:4px 8px;
+  }
+  .entry-del:hover{color:var(--danger);}
+  .entry-edit{
+    background:none;border:none;color:var(--muted);
+    font-size:16px;cursor:pointer;padding:4px 8px;
+  }
+  .entry-edit:hover{color:var(--pitch);}
+  .empty-state{
+    text-align:center;
+    padding:50px 20px;
+    color:var(--muted);
+    font-size:14px;
+    border:1.5px dashed var(--paper-line);
+    border-radius:4px;
+  }
+  .loading{text-align:center;padding:40px;color:var(--muted);font-size:13px;}
+
+  /* LOGIN */
+  #loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;}
+  #loginScreen h1{font-family:'Oswald',sans-serif;color:var(--pitch-deep);text-transform:uppercase;letter-spacing:1px;}
+  .login-box{background:var(--card);border:1px solid var(--paper-line);border-radius:6px;padding:32px;width:100%;max-width:340px;}
+  .login-box button{width:100%;padding:11px;background:var(--pitch-deep);color:var(--paper);border:none;border-radius:3px;cursor:pointer;font-size:13px;font-weight:700;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:0.5px;}
+  #loginError{color:var(--danger);font-size:12px;margin-top:10px;min-height:16px;}
+  #appWrap{display:none;}
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <h1>Carnet de terrain</h1>
+  <div class="login-box">
+    <button id="loginBtn">Se connecter avec Google</button>
+    <div id="loginError"></div>
+  </div>
+</div>
+
+<div id="appWrap">
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Carnet de <span>terrain</span></h1>
+      <div class="subtitle">Suivi des interventions — club de football</div>
+    </div>
+    <select class="month-picker" id="monthPicker"></select>
+  </header>
+
+  <div class="scoreboard" id="scoreboard"></div>
+
+  <div class="panel">
+    <h2 id="formTitle">Nouvelle intervention</h2>
+    <div class="grid">
+      <div class="field">
+        <label for="f-date">Date</label>
+        <input type="date" id="f-date">
+      </div>
+      <div class="field">
+        <label for="f-joueur">Joueur / effectif</label>
+        <input type="text" id="f-joueur" placeholder="Nom du joueur, ou 'Effectif'">
+      </div>
+      <div class="field">
+        <label for="f-tel">Téléphone du joueur</label>
+        <input type="tel" id="f-tel" placeholder="06 12 34 56 78">
+      </div>
+      <div class="field">
+        <label for="f-duree">Durée (minutes)</label>
+        <input type="number" id="f-duree" placeholder="30" min="5" step="5">
+      </div>
+      <div class="field">
+        <label for="f-type">Type d'acte</label>
+        <select id="f-type">
+          <option>Récupération</option>
+          <option>Soin — blessure</option>
+          <option>Bilan postural</option>
+          <option>Bilan musculaire</option>
+          <option>Autre</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-lieu">Lieu</label>
+        <select id="f-lieu">
+          <option>Cabinet</option>
+          <option>Stade</option>
+          <option>Autre</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-statut">Statut de facturation</label>
+        <select id="f-statut">
+          <option value="don">Abandon de recette (don au club)</option>
+          <option value="joueur">Facturé au joueur (sécurité sociale)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-tarif">Taux horaire appliqué (€)</label>
+        <input type="number" id="f-tarif" value="85" min="0" step="5">
+      </div>
+      <div class="field">
+        <label>Montant calculé</label>
+        <input type="text" id="f-montant" disabled style="font-weight:700;color:var(--pitch-deep);">
+      </div>
+    </div>
+    <div class="row-actions">
+      <button class="btn-ghost" id="cancelEdit" style="display:none;">Annuler la modification</button>
+      <button class="btn-ghost" id="clearForm">Effacer</button>
+      <button class="btn-primary" id="addEntry">Enregistrer l'intervention</button>
+    </div>
+  </div>
+
+  <div class="entries">
+    <h2>Interventions du mois</h2>
+    <div id="entriesList"><div class="loading">Chargement…</div></div>
+  </div>
+
+</div>
+</div> <!-- /appWrap -->
+
+<script>
+let entries = [];
+
+const $ = id => document.getElementById(id);
+
+// ===== FIREBASE (même projet que l'agenda) =====
+const firebaseConfig = {
+  apiKey: "AIzaSyDAXysp9GV0ELMut66s6TkHO7QnkI6Bxzo",
+  authDomain: "agenda-kine-139f7.firebaseapp.com",
+  databaseURL: "https://agenda-kine-139f7-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "agenda-kine-139f7",
+  storageBucket: "agenda-kine-139f7.firebasestorage.app",
+  messagingSenderId: "707353671008",
+  appId: "1:707353671008:web:112a336521506579715a05"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+const STORAGE_KEY = 'club-foot-entries';
+
+$('loginBtn').addEventListener('click', ()=>{
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(err=>{
+    $('loginError').textContent = "Connexion impossible : " + err.message;
+  });
+});
+
+auth.onAuthStateChanged(user=>{
+  if(user){
+    $('loginScreen').style.display = 'none';
+    $('appWrap').style.display = 'block';
+    attachEntriesListener();
+  } else {
+    $('loginScreen').style.display = 'flex';
+    $('appWrap').style.display = 'none';
+  }
+});
+
+function attachEntriesListener(){
+  db.ref(STORAGE_KEY).on('value', snap=>{
+    entries = snap.val() || [];
+    if(!$('f-date').value){
+      $('f-date').value = new Date().toISOString().slice(0,10);
+    }
+    populateMonthPicker();
+    render();
+  });
+}
+
+function fmtEuro(n){
+  return n.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
+}
+function monthKey(dateStr){
+  return dateStr ? dateStr.slice(0,7) : '';
+}
+function monthLabel(key){
+  const [y,m] = key.split('-');
+  const d = new Date(parseInt(y), parseInt(m)-1, 1);
+  return d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+}
+
+function computeMontant(){
+  const duree = parseFloat($('f-duree').value) || 0;
+  const tarif = parseFloat($('f-tarif').value) || 0;
+  const montant = (duree/60) * tarif;
+  $('f-montant').value = montant ? fmtEuro(montant) : '';
+  return montant;
+}
+$('f-duree').addEventListener('input', computeMontant);
+$('f-tarif').addEventListener('input', computeMontant);
+
+async function saveEntries(){
+  await db.ref(STORAGE_KEY).set(entries).catch(err=>console.error('Erreur de sauvegarde', err));
+}
+
+function populateMonthPicker(){
+  const picker = $('monthPicker');
+  const current = picker.value;
+  const months = new Set(entries.map(e => monthKey(e.date)));
+  const now = new Date().toISOString().slice(0,7);
+  months.add(now);
+  const sorted = Array.from(months).sort().reverse();
+  picker.innerHTML = sorted.map(k => `<option value="${k}">${monthLabel(k)}</option>`).join('');
+  picker.value = current && sorted.includes(current) ? current : now;
+}
+$('monthPicker').addEventListener('change', render);
+
+function render(){
+  const selectedMonth = $('monthPicker').value;
+  const monthEntries = entries
+    .filter(e => monthKey(e.date) === selectedMonth)
+    .sort((a,b) => b.date.localeCompare(a.date));
+
+  // Scoreboard
+  let totalDon = 0, totalJoueur = 0, totalHeures = 0;
+  monthEntries.forEach(e => {
+    if(e.statut === 'don') totalDon += e.montant;
+    else if(e.statut === 'joueur') totalJoueur += e.montant;
+    totalHeures += e.duree/60;
+  });
+
+  $('scoreboard').innerHTML = `
+    <div class="score-cell danger">
+      <div class="label">Abandon de recette</div>
+      <div class="value">${fmtEuro(totalDon)}</div>
+    </div>
+    <div class="score-cell clay">
+      <div class="label">Facturé joueurs (Sécu)</div>
+      <div class="value">${fmtEuro(totalJoueur)}</div>
+    </div>
+    <div class="score-cell">
+      <div class="label">Total heures</div>
+      <div class="value">${totalHeures.toFixed(1)} h</div>
+    </div>
+  `;
+
+  // List
+  const list = $('entriesList');
+  if(monthEntries.length === 0){
+    list.innerHTML = `<div class="empty-state">Aucune intervention enregistrée ce mois-ci.</div>`;
+    return;
+  }
+  const statutLabels = {
+    joueur: 'Facture joueur (Sécu)',
+    don: 'Don (abandon de recette)'
+  };
+  list.innerHTML = monthEntries.map(e => `
+    <div class="entry statut-${e.statut}">
+      <div class="entry-main">
+        <div class="entry-date">${new Date(e.date).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})}</div>
+        <div class="entry-title">${e.joueur || '—'} · ${e.type}</div>
+        <div class="entry-meta">
+          <span>${e.duree} min</span>
+          <span>${e.lieu}</span>
+          ${e.tel ? `<a href="tel:${e.tel.replace(/\s/g,'')}" style="color:var(--pitch);text-decoration:none;font-weight:600;">📞 ${e.tel}</a>` : ''}
+          <span class="tag">${statutLabels[e.statut]}</span>
+        </div>
+      </div>
+      <div class="entry-amount">${fmtEuro(e.montant)}</div>
+      <button class="entry-edit" data-id="${e.id}" title="Modifier">✎</button>
+      <button class="entry-del" data-id="${e.id}" title="Supprimer">✕</button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.entry-del').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      entries = entries.filter(e => e.id !== btn.dataset.id);
+      if(editingId === btn.dataset.id) exitEditMode();
+      await saveEntries();
+      populateMonthPicker();
+      render();
+    });
+  });
+
+  list.querySelectorAll('.entry-edit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const entry = entries.find(e => e.id === btn.dataset.id);
+      if(!entry) return;
+      editingId = entry.id;
+      $('f-date').value = entry.date;
+      $('f-joueur').value = entry.joueur;
+      $('f-tel').value = entry.tel || '';
+      $('f-type').value = entry.type;
+      $('f-duree').value = entry.duree;
+      $('f-lieu').value = entry.lieu;
+      $('f-statut').value = entry.statut;
+      $('f-tarif').value = entry.tarif;
+      computeMontant();
+      $('formTitle').textContent = 'Modifier l\'intervention';
+      $('addEntry').textContent = 'Enregistrer les modifications';
+      $('cancelEdit').style.display = 'inline-block';
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+  });
+}
+
+let editingId = null;
+
+function exitEditMode(){
+  editingId = null;
+  $('formTitle').textContent = 'Nouvelle intervention';
+  $('addEntry').textContent = "Enregistrer l'intervention";
+  $('cancelEdit').style.display = 'none';
+}
+
+function resetForm(){
+  $('f-joueur').value = '';
+  $('f-tel').value = '';
+  $('f-duree').value = '';
+  $('f-montant').value = '';
+  $('f-date').value = new Date().toISOString().slice(0,10);
+}
+
+$('addEntry').addEventListener('click', async () => {
+  const date = $('f-date').value;
+  const duree = parseFloat($('f-duree').value);
+  if(!date || !duree){
+    alert('Merci de renseigner au minimum la date et la durée.');
+    return;
+  }
+  const montant = computeMontant();
+  const data = {
+    date,
+    joueur: $('f-joueur').value.trim(),
+    tel: $('f-tel').value.trim(),
+    type: $('f-type').value,
+    duree,
+    lieu: $('f-lieu').value,
+    statut: $('f-statut').value,
+    tarif: parseFloat($('f-tarif').value) || 0,
+    montant
+  };
+
+  if(editingId){
+    const idx = entries.findIndex(e => e.id === editingId);
+    if(idx !== -1) entries[idx] = { id: editingId, ...data };
+    exitEditMode();
+  } else {
+    entries.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), ...data });
+  }
+
+  await saveEntries();
+  populateMonthPicker();
+  $('monthPicker').value = monthKey(date);
+  render();
+  resetForm();
+});
+
+$('cancelEdit').addEventListener('click', () => {
+  exitEditMode();
+  resetForm();
+});
+
+$('clearForm').addEventListener('click', () => {
+  resetForm();
+});
+
+// L'affichage initial est déclenché par attachEntriesListener() après connexion.
+</script>
+</body>
+</html>
