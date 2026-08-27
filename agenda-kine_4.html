@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda Kiné</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Firebase (SDK "compat", simple à intégrer sans outil de build) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+
+<style>
+  :root{
+    --paper:#FAF9F5; --ink:#1C1F1B; --pitch:#1F4A38; --pitch-deep:#153328;
+    --clay:#C87F3A; --clay-soft:#F0DCC4; --line:#DFDBCF; --muted:#7A7668; --card:#FFFFFF;
+    --ferie:#F3E4E0;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;}
+
+  /* ===== LOGIN ===== */
+  #loginScreen{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;
+  }
+  #loginScreen h1{font-family:'Oswald',sans-serif;color:var(--pitch-deep);text-transform:uppercase;letter-spacing:1px;}
+  .login-box{background:#fff;border:1px solid var(--line);border-radius:6px;padding:32px;width:100%;max-width:340px;}
+  .login-box input{
+    width:100%;padding:10px 12px;margin-bottom:12px;border:1.5px solid var(--line);
+    border-radius:3px;font-family:'Inter',sans-serif;font-size:14px;
+  }
+  .login-box button{width:100%;}
+  #loginError{color:#A8442E;font-size:12.5px;margin-top:6px;min-height:16px;}
+
+  /* ===== APP SHELL ===== */
+  #app{display:none;}
+  header.topbar{
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+    padding:12px 20px;border-bottom:3px solid var(--pitch-deep);background:#fff;
+    position:sticky;top:0;z-index:20;
+  }
+  header.topbar h1{
+    font-family:'Oswald',sans-serif;font-size:20px;text-transform:uppercase;letter-spacing:0.5px;
+    color:var(--pitch-deep);margin:0;
+  }
+  .topbar-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  button{
+    font-family:'Oswald',sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:0.4px;
+    padding:8px 14px;border-radius:3px;border:none;cursor:pointer;font-weight:600;
+  }
+  .btn-primary{background:var(--pitch-deep);color:var(--paper);}
+  .btn-primary:hover{background:var(--pitch);}
+  .btn-ghost{background:transparent;color:var(--muted);border:1.5px solid var(--line);}
+  .btn-ghost:hover{border-color:var(--ink);color:var(--ink);}
+  .btn-ghost.active{background:var(--pitch-deep);color:#fff;border-color:var(--pitch-deep);}
+  .nav-date{font-family:'Oswald',sans-serif;font-size:14px;color:var(--ink);min-width:170px;text-align:center;}
+
+  .search-box{position:relative;}
+  .search-box input{
+    padding:8px 12px;border:1.5px solid var(--line);border-radius:3px;font-size:13px;width:200px;
+  }
+  .search-suggest{
+    position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--line);
+    border-radius:3px;box-shadow:0 4px 10px rgba(0,0,0,0.08);z-index:50;max-height:220px;overflow-y:auto;
+  }
+  .search-suggest div{padding:8px 12px;font-size:13px;cursor:pointer;}
+  .search-suggest div:hover{background:var(--clay-soft);}
+
+  main{padding:16px 20px 60px;}
+
+  /* ===== CALENDAR GRID (jour/semaine) ===== */
+  .cal-wrap{display:flex;background:#fff;border:1px solid var(--line);border-radius:4px;overflow:hidden;}
+  .cal-time-col{width:56px;flex-shrink:0;border-right:1px solid var(--line);}
+  .cal-time-label{
+    height:60px;font-size:10.5px;color:var(--muted);text-align:right;padding-right:6px;
+    border-bottom:1px solid #F0EEE7;position:relative;top:-6px;
+  }
+  .cal-days{display:flex;flex:1;overflow-x:auto;}
+  .cal-day-col{flex:1;min-width:140px;border-right:1px solid var(--line);position:relative;}
+  .cal-day-col:last-child{border-right:none;}
+  .cal-day-col.ferie{background:var(--ferie);}
+  .cal-day-header{
+    height:44px;border-bottom:2px solid var(--pitch-deep);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;font-family:'Oswald',sans-serif;position:sticky;top:0;
+    background:inherit;z-index:5;
+  }
+  .cal-day-header .dname{font-size:11px;text-transform:uppercase;color:var(--muted);}
+  .cal-day-header .dnum{font-size:15px;font-weight:600;color:var(--pitch-deep);}
+  .cal-day-header .ferie-badge{font-size:8.5px;color:#A8442E;text-transform:uppercase;font-weight:700;}
+  .cal-slots{position:relative;}
+  .cal-slot-hour{height:60px;border-bottom:1px solid #F0EEE7;}
+  .cal-slot-hour:nth-child(odd){background:#FCFBF8;}
+
+  .appt-block{
+    position:absolute;left:2px;right:2px;border-radius:3px;padding:4px 6px;color:#fff;
+    font-size:11px;line-height:1.3;overflow:hidden;cursor:grab;box-shadow:0 1px 3px rgba(0,0,0,0.15);
+    border:1px solid rgba(0,0,0,0.1);
+  }
+  .appt-block.lca{background:#C0392B !important;border:2px solid #7A2016;font-weight:700;}
+  .appt-block .appt-time{font-weight:700;font-size:10px;opacity:0.9;}
+  .appt-block:active{cursor:grabbing;}
+  .drop-hover{outline:2px dashed var(--pitch);outline-offset:-2px;}
+
+  /* ===== MONTH VIEW ===== */
+  .month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden;}
+  .month-dow{background:var(--pitch-deep);color:#fff;text-align:center;font-family:'Oswald',sans-serif;font-size:11px;text-transform:uppercase;padding:8px 0;}
+  .month-cell{background:#fff;min-height:90px;padding:6px;cursor:pointer;}
+  .month-cell.other-month{background:#FAF9F5;color:#C9C4B2;}
+  .month-cell.ferie{background:var(--ferie);}
+  .month-cell:hover{background:#F5F3EC;}
+  .month-daynum{font-family:'Oswald',sans-serif;font-weight:600;font-size:13px;}
+  .month-dots{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;}
+  .month-dot{width:8px;height:8px;border-radius:50%;}
+  .month-more{font-size:10px;color:var(--muted);margin-top:2px;}
+
+  /* ===== PATIENTS VIEW ===== */
+  .patients-layout{display:grid;grid-template-columns:280px 1fr;gap:16px;}
+  @media(max-width:800px){.patients-layout{grid-template-columns:1fr;}}
+  .patients-list{background:#fff;border:1px solid var(--line);border-radius:4px;padding:10px;max-height:70vh;overflow-y:auto;}
+  .patient-row{padding:9px 10px;border-radius:3px;cursor:pointer;font-size:13.5px;}
+  .patient-row:hover{background:#F5F3EC;}
+  .patient-row.active{background:var(--pitch-deep);color:#fff;}
+  .patient-detail{background:#fff;border:1px solid var(--line);border-radius:4px;padding:20px;}
+  .patient-detail h3{font-family:'Oswald',sans-serif;color:var(--pitch-deep);text-transform:uppercase;margin-top:0;}
+  .patient-history-item{border-left:3px solid var(--pitch);padding:8px 12px;margin-bottom:8px;background:#FAF9F5;border-radius:3px;font-size:13px;}
+
+  /* ===== MODAL ===== */
+  .modal-overlay{position:fixed;inset:0;background:rgba(21,51,40,0.55);display:none;align-items:center;justify-content:center;z-index:200;padding:20px;}
+  .modal-overlay.open{display:flex;}
+  .modal-box{background:#fff;border-radius:6px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:3px solid var(--pitch-deep);}
+  .modal-header h3{font-family:'Oswald',sans-serif;font-size:15px;text-transform:uppercase;color:var(--pitch-deep);margin:0;}
+  .modal-close{background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;}
+  .modal-body{padding:18px 20px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:0.4px;color:var(--muted);font-weight:700;margin-bottom:4px;}
+  .field input, .field select, .field textarea{
+    width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:3px;font-family:'Inter',sans-serif;font-size:13.5px;
+  }
+  .field textarea{min-height:60px;resize:vertical;}
+  .field-row{display:flex;gap:10px;}
+  .field-row .field{flex:1;}
+  .modal-actions{display:flex;justify-content:space-between;margin-top:16px;}
+  .motif-swatch{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:middle;}
+</style>
+</head>
+<body>
+
+  <!-- ===== LOGIN ===== -->
+  <div id="loginScreen">
+    <h1>Agenda Kiné</h1>
+    <div class="login-box">
+      <button class="btn-primary" id="loginBtn" style="width:100%;">Se connecter avec Google</button>
+      <div id="loginError"></div>
+    </div>
+  </div>
+
+  <!-- ===== APP ===== -->
+  <div id="app">
+    <header class="topbar">
+      <h1>Agenda Kiné</h1>
+      <div class="topbar-controls">
+        <button class="btn-ghost" id="viewDay">Jour</button>
+        <button class="btn-ghost" id="viewWeek">Semaine</button>
+        <button class="btn-ghost" id="viewMonth">Mois</button>
+        <button class="btn-ghost" id="viewPatients">Patients</button>
+      </div>
+      <div class="topbar-controls">
+        <button class="btn-ghost" id="navPrev">◀</button>
+        <span class="nav-date" id="navDateLabel"></span>
+        <button class="btn-ghost" id="navToday">Aujourd'hui</button>
+        <button class="btn-ghost" id="navNext">▶</button>
+      </div>
+      <div class="topbar-controls">
+        <div class="search-box">
+          <input type="text" id="patientSearch" placeholder="Rechercher un patient…">
+          <div class="search-suggest" id="searchSuggest" style="display:none;"></div>
+        </div>
+        <button class="btn-primary" id="newApptBtn">+ Nouveau RDV</button>
+        <button class="btn-ghost" id="logoutBtn">Déconnexion</button>
+      </div>
+    </header>
+
+    <main>
+      <div id="calendarView"></div>
+      <div id="monthView" style="display:none;"></div>
+      <div id="patientsView" style="display:none;"></div>
+    </main>
+  </div>
+
+  <!-- ===== MODAL RDV ===== -->
+  <div class="modal-overlay" id="apptModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="apptModalTitle">Nouveau rendez-vous</h3>
+        <button class="modal-close" id="apptModalClose">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label>Patient</label>
+          <input type="text" id="apptPatientInput" placeholder="Nom du patient…" autocomplete="off">
+          <div class="search-suggest" id="apptPatientSuggest" style="display:none;position:relative;"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Date</label><input type="date" id="apptDate"></div>
+          <div class="field"><label>Heure</label><input type="time" id="apptHeure" step="900"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Durée (minutes)</label><input type="number" id="apptDuree" value="30" step="15" min="15"></div>
+          <div class="field"><label>Motif</label><select id="apptMotif"></select></div>
+        </div>
+        <div class="field"><label>Notes</label><textarea id="apptNotes"></textarea></div>
+        <div class="modal-actions">
+          <button class="btn-ghost" id="apptDeleteBtn" style="display:none;color:#A8442E;">Supprimer</button>
+          <button class="btn-primary" id="apptSaveBtn">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* =========================================================================
+   CONFIGURATION FIREBASE — à compléter avant utilisation
+   Firebase Console → Paramètres du projet (roue crantée) → Général →
+   section "Vos applications" → application Web (créer une appli Web si
+   aucune n'existe, icône </>) → copier l'objet firebaseConfig ci-dessous.
+   Ces valeurs ne sont pas secrètes : la sécurité réelle est assurée par les
+   règles de la base de données (voir instructions fournies séparément),
+   pas par la confidentialité de cette configuration.
+   ========================================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyDAXysp9GV0ELMut66s6TkHO7QnkI6Bxzo",
+  authDomain: "agenda-kine-139f7.firebaseapp.com",
+  databaseURL: "https://agenda-kine-139f7-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "agenda-kine-139f7",
+  storageBucket: "agenda-kine-139f7.firebasestorage.app",
+  messagingSenderId: "707353671008",
+  appId: "1:707353671008:web:112a336521506579715a05"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+const $ = id => document.getElementById(id);
+
+const MOTIFS = [
+  {id:'reeduc_postop', label:'Rééducation post-opératoire', color:'#4A6FA5'},
+  {id:'respi', label:'Kinésithérapie respiratoire', color:'#5FA777'},
+  {id:'sport', label:'Rééducation sportive', color:'#C87F3A'},
+  {id:'bilan', label:'Bilan', color:'#8B6BAF'},
+  {id:'lca', label:'LCA post-opératoire', color:'#C0392B'},
+  {id:'autre', label:'Autre', color:'#7A7668'}
+];
+function motifById(id){ return MOTIFS.find(m=>m.id===id) || MOTIFS[MOTIFS.length-1]; }
+
+/* ===== JOURS FÉRIÉS FRANÇAIS ===== */
+function easterDate(year){
+  const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4;
+  const f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3);
+  const h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4;
+  const l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);
+  const month=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;
+  return new Date(year, month-1, day);
+}
+function addDays(d,n){ const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+function toISO(d){ return d.toISOString().slice(0,10); }
+function frenchHolidays(year){
+  const easter = easterDate(year);
+  const fixed = [`${year}-01-01`,`${year}-05-01`,`${year}-05-08`,`${year}-07-14`,`${year}-08-15`,`${year}-11-01`,`${year}-11-11`,`${year}-12-25`];
+  const moving = [toISO(addDays(easter,1)), toISO(addDays(easter,39)), toISO(addDays(easter,50))];
+  return new Set([...fixed, ...moving]);
+}
+let holidaysCache = {};
+function isFerie(dateISO){
+  const year = parseInt(dateISO.slice(0,4));
+  if(!holidaysCache[year]) holidaysCache[year] = frenchHolidays(year);
+  return holidaysCache[year].has(dateISO);
+}
+
+/* ===== ETAT ===== */
+let patients = {};      // id -> {nom, prenom, telephone, notes}
+let appointments = {};  // id -> {date,heure,duree,patientId,patientNom,motif,notes}
+let currentView = 'week'; // day | week | month | patients
+let currentDate = new Date();
+let editingApptId = null;
+let selectedPatientForModal = null;
+let activePatientId = null;
+
+const START_HOUR = 8, END_HOUR = 20, SLOT_PX = 15; // px par 15 minutes
+
+/* ===== AUTH ===== */
+auth.onAuthStateChanged(user=>{
+  if(user){
+    $('loginScreen').style.display = 'none';
+    $('app').style.display = 'block';
+    attachListeners();
+  } else {
+    $('loginScreen').style.display = 'flex';
+    $('app').style.display = 'none';
+  }
+});
+$('loginBtn').addEventListener('click', ()=>{
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider)
+    .catch(err => $('loginError').textContent = "Connexion impossible : " + err.message);
+});
+$('logoutBtn').addEventListener('click', ()=> auth.signOut());
+
+/* ===== DATA LISTENERS (temps réel) ===== */
+function attachListeners(){
+  db.ref('patients').on('value', snap=>{ patients = snap.val() || {}; renderCurrentView(); });
+  db.ref('appointments').on('value', snap=>{ appointments = snap.val() || {}; renderCurrentView(); });
+}
+
+/* ===== NAVIGATION VUES ===== */
+function setView(v){
+  currentView = v;
+  ['viewDay','viewWeek','viewMonth','viewPatients'].forEach(id=>$(id).classList.remove('active'));
+  $('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');
+  $('calendarView').style.display = (v==='day'||v==='week') ? 'block' : 'none';
+  $('monthView').style.display = v==='month' ? 'block' : 'none';
+  $('patientsView').style.display = v==='patients' ? 'block' : 'none';
+  renderCurrentView();
+}
+$('viewDay').addEventListener('click', ()=>setView('day'));
+$('viewWeek').addEventListener('click', ()=>setView('week'));
+$('viewMonth').addEventListener('click', ()=>setView('month'));
+$('viewPatients').addEventListener('click', ()=>setView('patients'));
+
+$('navPrev').addEventListener('click', ()=>{ navigate(-1); });
+$('navNext').addEventListener('click', ()=>{ navigate(1); });
+$('navToday').addEventListener('click', ()=>{ currentDate = new Date(); renderCurrentView(); });
+function navigate(dir){
+  if(currentView==='day') currentDate = addDays(currentDate, dir);
+  else if(currentView==='week') currentDate = addDays(currentDate, dir*7);
+  else if(currentView==='month') currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth()+dir, 1);
+  renderCurrentView();
+}
+
+function renderCurrentView(){
+  if(currentView==='day') renderCalendar([new Date(currentDate)]);
+  else if(currentView==='week') renderCalendar(weekDays(currentDate));
+  else if(currentView==='month') renderMonth();
+  else if(currentView==='patients') renderPatients();
+  updateDateLabel();
+}
+function weekDays(d){
+  const day = d.getDay(); const monday = addDays(d, day===0?-6:1-day);
+  return Array.from({length:7}, (_,i)=>addDays(monday,i));
+}
+function updateDateLabel(){
+  const opts = {day:'numeric',month:'long',year:'numeric'};
+  if(currentView==='day') $('navDateLabel').textContent = currentDate.toLocaleDateString('fr-FR',opts);
+  else if(currentView==='week'){
+    const days = weekDays(currentDate);
+    $('navDateLabel').textContent = days[0].toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' – '+days[6].toLocaleDateString('fr-FR',opts);
+  } else if(currentView==='month'){
+    $('navDateLabel').textContent = currentDate.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  } else { $('navDateLabel').textContent = ''; }
+}
+
+/* ===== RENDU CALENDRIER JOUR / SEMAINE ===== */
+function renderCalendar(days){
+  const totalSlots = (END_HOUR-START_HOUR)*4;
+  let timeColHtml = '';
+  for(let h=START_HOUR; h<END_HOUR; h++){
+    timeColHtml += `<div class="cal-time-label" style="height:${SLOT_PX*4}px;">${String(h).padStart(2,'0')}:00</div>`;
+  }
+
+  let daysHtml = '';
+  days.forEach(d=>{
+    const iso = toISO(d);
+    const ferie = isFerie(iso);
+    let hoursHtml = '';
+    for(let h=START_HOUR; h<END_HOUR; h++) hoursHtml += `<div class="cal-slot-hour" style="height:${SLOT_PX*4}px;"></div>`;
+
+    const dayAppts = Object.entries(appointments).filter(([,a])=>a.date===iso);
+    let apptsHtml = '';
+    dayAppts.forEach(([id,a])=>{
+      const [hh,mm] = a.heure.split(':').map(Number);
+      const top = ((hh-START_HOUR)*60 + mm) / 15 * SLOT_PX;
+      const height = Math.max((a.duree/15)*SLOT_PX, SLOT_PX);
+      const m = motifById(a.motif);
+      const isLca = a.motif === 'lca';
+      apptsHtml += `<div class="appt-block ${isLca?'lca':''}" draggable="true" data-id="${id}"
+          style="top:${top}px;height:${height}px;background:${isLca?'':m.color};"
+          title="${a.patientNom} — ${m.label}">
+          <span class="appt-time">${a.heure}</span><br>${a.patientNom}
+        </div>`;
+    });
+
+    daysHtml += `<div class="cal-day-col ${ferie?'ferie':''}" data-date="${iso}">
+        <div class="cal-day-header">
+          <span class="dname">${d.toLocaleDateString('fr-FR',{weekday:'short'})}</span>
+          <span class="dnum">${d.getDate()}</span>
+          ${ferie?'<span class="ferie-badge">Férié</span>':''}
+        </div>
+        <div class="cal-slots" style="height:${totalSlots*SLOT_PX}px;">
+          ${hoursHtml}
+          ${apptsHtml}
+        </div>
+      </div>`;
+  });
+
+  $('calendarView').innerHTML = `<div class="cal-wrap">
+      <div class="cal-time-col"><div style="height:44px;"></div>${timeColHtml}</div>
+      <div class="cal-days">${daysHtml}</div>
+    </div>`;
+
+  attachCalendarInteractions();
+}
+
+function attachCalendarInteractions(){
+  // Ouvrir un RDV existant
+  document.querySelectorAll('.appt-block').forEach(el=>{
+    el.addEventListener('click', (e)=>{ if(!el.dataset.dragged) openApptModal(el.dataset.id); });
+    el.addEventListener('dragstart', e=>{
+      e.dataTransfer.setData('text/plain', el.dataset.id);
+    });
+  });
+  // Créer un RDV en cliquant un créneau vide
+  document.querySelectorAll('.cal-slots').forEach(slotEl=>{
+    slotEl.addEventListener('click', (e)=>{
+      if(e.target !== slotEl) return;
+      const rect = slotEl.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const totalMin = Math.round(y/SLOT_PX)*15;
+      const hh = START_HOUR + Math.floor(totalMin/60);
+      const mm = totalMin%60;
+      const dateISO = slotEl.closest('.cal-day-col').dataset.date;
+      openApptModal(null, dateISO, `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`);
+    });
+    slotEl.addEventListener('dragover', e=>{ e.preventDefault(); slotEl.classList.add('drop-hover'); });
+    slotEl.addEventListener('dragleave', ()=> slotEl.classList.remove('drop-hover'));
+    slotEl.addEventListener('drop', e=>{
+      e.preventDefault();
+      slotEl.classList.remove('drop-hover');
+      const id = e.dataTransfer.getData('text/plain');
+      const rect = slotEl.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const totalMin = Math.round(y/SLOT_PX)*15;
+      const hh = START_HOUR + Math.floor(totalMin/60);
+      const mm = totalMin%60;
+      const dateISO = slotEl.closest('.cal-day-col').dataset.date;
+      db.ref('appointments/'+id).update({date:dateISO, heure:`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`});
+    });
+  });
+}
+
+/* ===== RENDU MOIS ===== */
+function renderMonth(){
+  const year = currentDate.getFullYear(), month = currentDate.getMonth();
+  const first = new Date(year, month, 1);
+  const startOffset = (first.getDay()===0?6:first.getDay()-1);
+  const gridStart = addDays(first, -startOffset);
+  const dows = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  let html = dows.map(d=>`<div class="month-dow">${d}</div>`).join('');
+  for(let i=0;i<42;i++){
+    const d = addDays(gridStart,i);
+    const iso = toISO(d);
+    const otherMonth = d.getMonth()!==month;
+    const ferie = isFerie(iso);
+    const dayAppts = Object.entries(appointments).filter(([,a])=>a.date===iso).sort((a,b)=>a[1].heure.localeCompare(b[1].heure));
+    const dots = dayAppts.slice(0,6).map(([,a])=>{
+      const m = motifById(a.motif);
+      return `<span class="month-dot" style="background:${a.motif==='lca'?'#C0392B':m.color};"></span>`;
+    }).join('');
+    html += `<div class="month-cell ${otherMonth?'other-month':''} ${ferie?'ferie':''}" data-date="${iso}">
+        <div class="month-daynum">${d.getDate()}</div>
+        <div class="month-dots">${dots}</div>
+        ${dayAppts.length>6?`<div class="month-more">+${dayAppts.length-6}</div>`:''}
+      </div>`;
+  }
+  $('monthView').innerHTML = `<div class="month-grid">${html}</div>`;
+  document.querySelectorAll('.month-cell').forEach(cell=>{
+    cell.addEventListener('click', ()=>{
+      currentDate = new Date(cell.dataset.date);
+      setView('day');
+    });
+  });
+}
+
+/* ===== RENDU PATIENTS ===== */
+function renderPatients(filter){
+  const entries = Object.entries(patients).sort((a,b)=> (a[1].nom||'').localeCompare(b[1].nom||''));
+  const filtered = filter ? entries.filter(([,p])=> ((p.nom||'')+' '+(p.prenom||'')).toLowerCase().includes(filter.toLowerCase())) : entries;
+  const listHtml = filtered.map(([id,p])=>
+    `<div class="patient-row ${id===activePatientId?'active':''}" data-id="${id}">${p.nom||''} ${p.prenom||''}</div>`
+  ).join('') || '<div style="padding:10px;color:var(--muted);font-size:13px;">Aucun patient.</div>';
+
+  $('patientsView').innerHTML = `
+    <div class="patients-layout">
+      <div>
+        <input type="text" id="patientsFilterInput" placeholder="Filtrer…" style="width:100%;padding:8px 10px;margin-bottom:8px;border:1.5px solid var(--line);border-radius:3px;">
+        <div class="patients-list">${listHtml}</div>
+      </div>
+      <div class="patient-detail" id="patientDetail">
+        <div style="color:var(--muted);">Sélectionne un patient pour voir son historique.</div>
+      </div>
+    </div>`;
+
+  $('patientsFilterInput').addEventListener('input', e=> renderPatients(e.target.value));
+  document.querySelectorAll('.patient-row').forEach(row=>{
+    row.addEventListener('click', ()=>{ activePatientId = row.dataset.id; renderPatients(filter); showPatientDetail(row.dataset.id); });
+  });
+  if(activePatientId && patients[activePatientId]) showPatientDetail(activePatientId);
+}
+
+function showPatientDetail(id){
+  const p = patients[id];
+  if(!p) return;
+  const history = Object.entries(appointments)
+    .filter(([,a])=>a.patientId===id)
+    .sort((a,b)=> b[1].date.localeCompare(a[1].date) || b[1].heure.localeCompare(a[1].heure));
+  const historyHtml = history.map(([id2,a])=>{
+    const m = motifById(a.motif);
+    return `<div class="patient-history-item">
+        <b>${a.date}</b> à ${a.heure} — ${m.label}${a.notes?'<br><i>'+a.notes+'</i>':''}
+      </div>`;
+  }).join('') || '<div style="color:var(--muted);">Aucun rendez-vous enregistré.</div>';
+
+  $('patientDetail').innerHTML = `
+    <h3>${p.nom||''} ${p.prenom||''}</h3>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">${p.telephone||'Téléphone non renseigné'}</div>
+    <div style="font-size:13px;margin-bottom:16px;">${p.notes||''}</div>
+    <div class="sublabel" style="font-family:'Oswald',sans-serif;font-size:11px;text-transform:uppercase;color:var(--pitch-deep);margin-bottom:8px;">Historique des rendez-vous</div>
+    ${historyHtml}`;
+}
+
+/* ===== RECHERCHE PATIENT (barre du haut) ===== */
+$('patientSearch').addEventListener('input', e=>{
+  const q = e.target.value.toLowerCase();
+  const box = $('searchSuggest');
+  if(!q){ box.style.display='none'; return; }
+  const matches = Object.entries(patients).filter(([,p])=> ((p.nom||'')+' '+(p.prenom||'')).toLowerCase().includes(q)).slice(0,8);
+  box.innerHTML = matches.map(([id,p])=>`<div data-id="${id}">${p.nom||''} ${p.prenom||''}</div>`).join('') || '<div style="color:var(--muted);">Aucun résultat</div>';
+  box.style.display = 'block';
+  box.querySelectorAll('div[data-id]').forEach(d=>{
+    d.addEventListener('click', ()=>{
+      activePatientId = d.dataset.id;
+      $('patientSearch').value=''; box.style.display='none';
+      setView('patients');
+    });
+  });
+});
+
+/* ===== MODAL NOUVEAU / EDITION RDV ===== */
+MOTIFS.forEach(m=>{
+  const opt = document.createElement('option');
+  opt.value = m.id; opt.textContent = m.label;
+  $('apptMotif').appendChild(opt);
+});
+
+$('newApptBtn').addEventListener('click', ()=> openApptModal(null, toISO(new Date()), '09:00'));
+$('apptModalClose').addEventListener('click', closeApptModal);
+
+function openApptModal(apptId, defaultDate, defaultHeure){
+  editingApptId = apptId;
+  selectedPatientForModal = null;
+  const a = apptId ? appointments[apptId] : null;
+  $('apptModalTitle').textContent = apptId ? 'Modifier le rendez-vous' : 'Nouveau rendez-vous';
+  $('apptPatientInput').value = a ? a.patientNom : '';
+  $('apptDate').value = a ? a.date : (defaultDate || toISO(new Date()));
+  $('apptHeure').value = a ? a.heure : (defaultHeure || '09:00');
+  $('apptDuree').value = a ? a.duree : 30;
+  $('apptMotif').value = a ? a.motif : 'reeduc_postop';
+  $('apptNotes').value = a ? (a.notes||'') : '';
+  $('apptDeleteBtn').style.display = apptId ? 'inline-block' : 'none';
+  if(a) selectedPatientForModal = {id:a.patientId, nom:a.patientNom};
+  $('apptModal').classList.add('open');
+}
+function closeApptModal(){ $('apptModal').classList.remove('open'); $('apptPatientSuggest').style.display='none'; }
+
+$('apptPatientInput').addEventListener('input', e=>{
+  const q = e.target.value.toLowerCase();
+  selectedPatientForModal = null;
+  const box = $('apptPatientSuggest');
+  if(!q){ box.style.display='none'; return; }
+  const matches = Object.entries(patients).filter(([,p])=> ((p.nom||'')+' '+(p.prenom||'')).toLowerCase().includes(q)).slice(0,6);
+  box.innerHTML = matches.map(([id,p])=>`<div data-id="${id}" data-nom="${p.nom||''} ${p.prenom||''}">${p.nom||''} ${p.prenom||''}</div>`).join('');
+  box.style.display = matches.length ? 'block' : 'none';
+  box.querySelectorAll('div[data-id]').forEach(d=>{
+    d.addEventListener('click', ()=>{
+      selectedPatientForModal = {id:d.dataset.id, nom:d.dataset.nom};
+      $('apptPatientInput').value = d.dataset.nom;
+      box.style.display='none';
+    });
+  });
+});
+
+$('apptSaveBtn').addEventListener('click', async ()=>{
+  const nomSaisi = $('apptPatientInput').value.trim();
+  if(!nomSaisi){ alert('Merci de renseigner un patient.'); return; }
+  const dateISO = $('apptDate').value;
+
+  if(isFerie(dateISO) && !confirm('Ce jour est un jour férié en France. Confirmer quand même ce rendez-vous ?')) return;
+
+  let patientId = selectedPatientForModal ? selectedPatientForModal.id : null;
+  let patientNom = nomSaisi;
+  if(!patientId){
+    // Nouveau patient : on sépare grossièrement nom/prénom (premier mot = nom)
+    const parts = nomSaisi.split(' ');
+    const newRef = db.ref('patients').push();
+    await newRef.set({nom: parts[0]||nomSaisi, prenom: parts.slice(1).join(' ')||'', telephone:'', notes:''});
+    patientId = newRef.key;
+  }
+
+  const data = {
+    date: dateISO,
+    heure: $('apptHeure').value,
+    duree: parseInt($('apptDuree').value) || 30,
+    patientId, patientNom,
+    motif: $('apptMotif').value,
+    notes: $('apptNotes').value
+  };
+
+  if(editingApptId) await db.ref('appointments/'+editingApptId).update(data);
+  else await db.ref('appointments').push(data);
+
+  closeApptModal();
+});
+
+$('apptDeleteBtn').addEventListener('click', async ()=>{
+  if(!editingApptId) return;
+  if(!confirm('Supprimer ce rendez-vous ?')) return;
+  await db.ref('appointments/'+editingApptId).remove();
+  closeApptModal();
+});
+
+/* ===== INIT ===== */
+setView('week');
+</script>
+</body>
+</html>
