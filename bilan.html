@@ -271,6 +271,14 @@
   .login-box button{width:100%;padding:11px;background:var(--pitch-deep);color:var(--paper);border:none;border-radius:3px;cursor:pointer;font-size:13px;font-weight:700;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:0.5px;}
   #loginError{color:var(--danger);font-size:12px;margin-top:10px;min-height:16px;}
   #appWrap{display:none;}
+  .toolnav{display:flex;gap:0;justify-content:center;background:var(--pitch-deep);}
+  .toolnav a{
+    padding:12px 22px;color:#B9CFC3;text-decoration:none;
+    font-family:'Oswald',sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;
+    border-bottom:3px solid transparent;
+  }
+  .toolnav a.active{color:#fff;border-bottom-color:var(--clay);}
+  .toolnav a:hover{color:#fff;}
 </style>
 </head>
 <body>
@@ -284,6 +292,11 @@
 </div>
 
 <div id="appWrap">
+<nav class="toolnav">
+  <a href="index.html">Agenda</a>
+  <a href="carnet.html">Carnet</a>
+  <a href="bilan.html" class="active">Bilan</a>
+</nav>
 
   <div class="toolbar">
     <h2>Fiche de bilan — Carnet de terrain</h2>
