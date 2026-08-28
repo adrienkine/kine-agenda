@@ -237,6 +237,14 @@
   .login-box button{width:100%;padding:11px;background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;}
   #loginError{color:#e05555;font-size:12px;margin-top:10px;min-height:16px;}
   #appWrap{display:none;flex-direction:column;height:100%;}
+  .toolnav{display:flex;gap:0;justify-content:center;background:var(--bg-modal);border-bottom:1px solid var(--border);}
+  .toolnav a{
+    padding:11px 22px;color:var(--text-sub);text-decoration:none;
+    font-family:'DM Sans',sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;
+    border-bottom:3px solid transparent;
+  }
+  .toolnav a.active{color:var(--text-title);border-bottom-color:var(--accent2);}
+  .toolnav a:hover{color:var(--text-title);}
 </style>
 </head>
 <body>
@@ -251,6 +259,11 @@
 </div>
 
 <div id="appWrap">
+<nav class="toolnav">
+  <a href="index.html" class="active">Agenda</a>
+  <a href="carnet.html">Carnet</a>
+  <a href="bilan.html">Bilan</a>
+</nav>
 
 <!-- TOAST -->
 <div id="toast"><span class="toast-icon"></span><span id="toast-msg"></span></div>
