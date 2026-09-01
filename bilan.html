@@ -305,6 +305,7 @@
         <option value="">Charger un bilan enregistré…</option>
       </select>
       <button class="btn-ghost" id="playerHistoryBtn">Historique joueur</button>
+      <button class="btn-ghost" id="letterBtn">Courrier médecin</button>
       <button class="btn-ghost" id="deleteBilan" title="Supprimer le bilan sélectionné">Supprimer</button>
       <button class="btn-ghost" id="newBilan">Nouveau bilan</button>
       <button class="btn-clay" id="saveBilan">Enregistrer</button>
@@ -555,6 +556,41 @@
         </select>
         <div id="historyRecurrent"></div>
         <div id="historyTimeline"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay no-print" id="letterOverlay" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Courrier médecin</h3>
+        <button class="modal-close" id="closeLetter">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="check-row">
+          <label class="check-item"><input type="radio" name="letterType" value="debut" checked> Début de prise en charge</label>
+          <label class="check-item"><input type="radio" name="letterType" value="fin"> Fin de prise en charge</label>
+        </div>
+        <div class="field" style="margin-top:14px;">
+          <label>Nom du médecin (facultatif)</label>
+          <input type="text" id="letterMedecin" placeholder="Laisser vide pour « Cher Confrère »">
+        </div>
+        <div id="letterFinFields" style="display:none;">
+          <div class="field-row">
+            <div class="field">
+              <label>Date de début de prise en charge</label>
+              <input type="date" id="letterDateDebut">
+            </div>
+            <div class="field">
+              <label>Nombre de séances effectuées</label>
+              <input type="number" id="letterNbSeances" min="1">
+            </div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin:10px 0 4px;">
+          Le courrier reprend les objectifs, le plan de traitement et les exercices déjà saisis dans le bilan — pas le diagnostic ni les antécédents.
+        </div>
+        <button class="btn-primary" id="generateLetterBtn" style="width:100%;margin-top:10px;">Générer et imprimer</button>
       </div>
     </div>
   </div>
@@ -1036,6 +1072,90 @@ $('importBilansFile').addEventListener('change', async (e)=>{
   e.target.value = '';
 });
 // ===== FIN EXPORT / IMPORT =====
+
+// ===== COURRIER MEDECIN =====
+document.querySelectorAll('input[name=letterType]').forEach(r=>{
+  r.addEventListener('change', ()=>{
+    $('letterFinFields').style.display = (document.querySelector('input[name=letterType]:checked').value === 'fin') ? 'block' : 'none';
+  });
+});
+
+$('letterBtn').addEventListener('click', ()=>{
+  $('letterMedecin').value = '';
+  $('letterDateDebut').value = '';
+  $('letterNbSeances').value = '';
+  document.querySelector('input[name=letterType][value=debut]').checked = true;
+  $('letterFinFields').style.display = 'none';
+  $('letterOverlay').classList.add('open');
+  $('letterOverlay').style.display = 'flex';
+});
+$('closeLetter').addEventListener('click', ()=>{ $('letterOverlay').style.display = 'none'; });
+$('letterOverlay').addEventListener('click', (e)=>{ if(e.target.id === 'letterOverlay') $('letterOverlay').style.display = 'none'; });
+
+function buildLetterText(){
+  const type = document.querySelector('input[name=letterType]:checked').value;
+  const medecin = $('letterMedecin').value.trim();
+  const nom = $('joueurNom').value.trim();
+  const prenom = $('joueurPrenom').value.trim();
+  const dateBilanVal = $('dateBilan').value;
+  const fmtDate = (iso) => iso ? new Date(iso+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
+  const dateBilanFr = fmtDate(dateBilanVal);
+  const objCourt = ($('objectifCourt').innerText||'').trim();
+  const objMoyen = ($('objectifMoyen').innerText||'').trim();
+  const objLong = ($('objectifLong').innerText||'').trim();
+  const plan = ($('planTraitement').innerText||'').trim();
+  const exercices = ($('exercicesMaison').innerText||'').trim();
+  const conseils = ($('conseils').innerText||'').trim();
+  const aptitude = (document.querySelector('input[name=aptitude]:checked')||{}).value;
+  const aptLabel = {complete:'une reprise normale des activités',partielle:'une reprise avec aménagements',inapte:"la poursuite des soins, l'arrêt d'activité restant en cours"}[aptitude] || '';
+  const salutation = medecin ? `Cher Docteur ${medecin},` : 'Cher Confrère,';
+  const today = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+
+  let body;
+  if(type === 'debut'){
+    const objLines = [
+      objCourt ? '- Court terme : '+objCourt : '',
+      objMoyen ? '- Moyen terme : '+objMoyen : '',
+      objLong ? '- Long terme : '+objLong : ''
+    ].filter(Boolean).join('\n');
+    body = `${salutation}\n\nJe fais suite à votre prescription et vous informe du début de la prise en charge kinésithérapique de ${prenom} ${nom}, débutée le ${dateBilanFr}.\n`
+      + (objLines ? `\nObjectifs de la rééducation :\n${objLines}\n` : '')
+      + (plan ? `\nPlan de traitement envisagé :\n${plan}\n` : '')
+      + `\nJe reste à votre disposition pour tout échange complémentaire et ne manquerai pas de vous tenir informé de l'évolution de la prise en charge.\n\nConfraternellement,\n\nAdrien Hervet\nMasseur-kinésithérapeute D.E.`;
+  } else {
+    const dateDebutVal = $('letterDateDebut').value;
+    const nbSeances = $('letterNbSeances').value;
+    const periode = dateDebutVal ? `du ${fmtDate(dateDebutVal)} au ${dateBilanFr}` : `jusqu'au ${dateBilanFr}`;
+    const seances = nbSeances ? `, à raison de ${nbSeances} séance${nbSeances>1?'s':''}` : '';
+    const objLines = [objCourt,objMoyen,objLong].filter(Boolean).map(o=>'- '+o).join('\n');
+    body = `${salutation}\n\nJe vous informe de la fin de la prise en charge kinésithérapique de ${prenom} ${nom}, assurée ${periode}${seances}.\n`
+      + (objLines ? `\nLes objectifs suivants ont été travaillés au cours de la prise en charge :\n${objLines}\n` : '')
+      + (exercices ? `\nUn programme d'exercices a été transmis au patient pour poursuite à domicile :\n${exercices}\n` : '')
+      + (conseils ? `\nConseils donnés :\n${conseils}\n` : '')
+      + (aptLabel ? `\nÀ l'issue de cette prise en charge, le patient présente ${aptLabel}.\n` : '')
+      + `\nJe reste à votre disposition pour tout complément d'information.\n\nConfraternellement,\n\nAdrien Hervet\nMasseur-kinésithérapeute D.E.`;
+  }
+  return `Le ${today}\n\n${body}`;
+}
+
+$('generateLetterBtn').addEventListener('click', ()=>{
+  if(!$('joueurNom').value.trim()){
+    alert('Merci de renseigner au moins le nom du patient dans le bilan avant de générer le courrier.');
+    return;
+  }
+  const text = buildLetterText();
+  const w = window.open('', '_blank');
+  if(!w){ alert("Le navigateur a bloqué l'ouverture de la fenêtre. Autorise les pop-ups pour ce site."); return; }
+  const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  w.document.write(`<!DOCTYPE html><html><head><title>Courrier médecin</title><meta charset="UTF-8">
+    <style>body{font-family:Georgia,'Times New Roman',serif;font-size:14px;line-height:1.8;max-width:680px;margin:50px auto;color:#1c1f1b;white-space:pre-wrap;}</style>
+    </head><body>${escaped}</body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>w.print(), 300);
+  $('letterOverlay').style.display = 'none';
+});
+// ===== FIN COURRIER MEDECIN =====
 
 $('saveBilan').addEventListener('click', async ()=>{
   if(!$('joueurNom').value){ alert('Merci de renseigner au moins le nom du joueur.'); return; }
