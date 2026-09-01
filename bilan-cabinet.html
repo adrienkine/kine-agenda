@@ -584,6 +584,8 @@ auth.onAuthStateChanged(user=>{
     $('appWrap').style.display = 'block';
     $('dateBilan').value = new Date().toISOString().slice(0,10);
     populateLoadSelect();
+    const patientParam = new URLSearchParams(window.location.search).get('patient');
+    if(patientParam) openHistoryModal(patientParam);
   } else {
     $('loginScreen').style.display = 'flex';
     $('appWrap').style.display = 'none';
@@ -908,12 +910,12 @@ async function populateLoadSelect(){
 }
 
 // ===== HISTORIQUE JOUEUR =====
-async function openHistoryModal(){
+async function openHistoryModal(preselectName){
   const bilans = await loadAllBilans();
   const names = [...new Set(bilans.map(b => ((b.joueurNom||'')+' '+(b.joueurPrenom||'')).trim()).filter(n=>n))].sort();
   const sel = $('historyPlayerSelect');
   sel.innerHTML = '<option value="">— Choisir un patient —</option>' + names.map(n=>`<option value="${n}">${n}</option>`).join('');
-  const current = ($('joueurNom').value+' '+$('joueurPrenom').value).trim();
+  const current = preselectName || ($('joueurNom').value+' '+$('joueurPrenom').value).trim();
   if(current && names.includes(current)) sel.value = current;
   await renderHistoryForPlayer(sel.value);
   $('historyOverlay').style.display = 'flex';
