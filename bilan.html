@@ -543,6 +543,22 @@
 
   </div>
 
+  <div class="modal-overlay no-print" id="historyOverlay" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Historique joueur</h3>
+        <button class="modal-close" id="closeHistory">✕</button>
+      </div>
+      <div class="modal-body">
+        <select id="historyPlayerSelect" class="load-select" style="width:100%;margin-bottom:14px;">
+          <option value="">— Choisir un joueur —</option>
+        </select>
+        <div id="historyRecurrent"></div>
+        <div id="historyTimeline"></div>
+      </div>
+    </div>
+  </div>
+
 <script>
 const STORAGE_KEY = 'club-foot-bilans';
 const $ = id => document.getElementById(id);
@@ -1061,21 +1077,6 @@ $('printBilan').addEventListener('click', ()=> window.print());
 
 // La date du jour et le chargement des bilans sont déclenchés après connexion (voir onAuthStateChanged).
 </script>
-  <div class="modal-overlay no-print" id="historyOverlay" style="display:none;">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h3>Historique joueur</h3>
-        <button class="modal-close" id="closeHistory">✕</button>
-      </div>
-      <div class="modal-body">
-        <select id="historyPlayerSelect" class="load-select" style="width:100%;margin-bottom:14px;">
-          <option value="">— Choisir un joueur —</option>
-        </select>
-        <div id="historyRecurrent"></div>
-        <div id="historyTimeline"></div>
-      </div>
-    </div>
-  </div>
 
 </div> <!-- /appWrap -->
 
