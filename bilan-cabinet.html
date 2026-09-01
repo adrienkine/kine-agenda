@@ -662,12 +662,14 @@ $('evaSlider').addEventListener('input', e => $('evaValue').textContent = e.targ
 
 // ===== SCHÉMA CORPOREL =====
 const injuryLists = {
-  articulation: ['Entorse bénigne (stade 1)','Entorse moyenne (stade 2)','Entorse grave / rupture ligamentaire (stade 3)','Tendinopathie','Bursite','Instabilité chronique','Douleur mécanique','Contusion / œdème','Suspicion fracture','Arthrose','Prothèse articulaire (suites de pose)'],
   muscle: ['Contracture','Élongation','Claquage (déchirure partielle)','Rupture musculaire complète','Courbatures (DOMS)','Point douloureux (trigger point)','Hématome','Déconditionnement / faiblesse liée à l\u2019âge'],
   rachis: ['Lombalgie / dorsalgie mécanique','Contracture paravertébrale','Sciatalgie','Cervicalgie','Torticolis','Blocage articulaire postérieur','Hernie discale suspectée','Arthrose rachidienne','Névralgie cervico-brachiale','Radiculalgie (sciatique / cruralgie)','Scoliose'],
   pied_main: ['Entorse','Suspicion fracture','Contusion','Ampoule / lésion cutanée','Tendinopathie','Crampe','Syndrome du canal carpien','Névralgie / compression nerveuse périphérique','Hallux valgus (suites opératoires)'],
   epaule: ['Tendinopathie de la coiffe des rotateurs','Bursite sous-acromiale','Conflit sous-acromial','Capsulite rétractile / épaule gelée','Instabilité / luxation','Arthrose (omarthrose)',"Prothèse d'épaule (suites de pose)",'Contusion / œdème','Suspicion fracture'],
-  cheville_achille: ['Entorse bénigne (stade 1)','Entorse moyenne (stade 2)','Entorse grave / rupture ligamentaire (stade 3)','Tendinopathie achilléenne',"Rupture du tendon d'Achille",'Instabilité chronique de cheville','Bursite rétro-calcanéenne','Arthrose','Douleur mécanique','Contusion / œdème','Suspicion fracture']
+  cheville_achille: ['Entorse bénigne (stade 1)','Entorse moyenne (stade 2)','Entorse grave / rupture ligamentaire (stade 3)','Tendinopathie achilléenne',"Rupture du tendon d'Achille",'Instabilité chronique de cheville','Bursite rétro-calcanéenne','Arthrose','Douleur mécanique','Contusion / œdème','Suspicion fracture'],
+  hanche: ['Coxarthrose (arthrose de hanche)','Conflit fémoro-acétabulaire','Tendinopathie du moyen fessier','Bursite trochantérienne','Lésion du labrum acétabulaire','Prothèse de hanche (suites de pose)','Suites de fracture du col du fémur','Douleur mécanique','Contusion / œdème'],
+  genou: ['Gonarthrose (arthrose du genou)','Syndrome fémoro-patellaire (syndrome rotulien)','Lésion méniscale',"Rupture du ligament croisé antérieur (LCA)",'Entorse des ligaments latéraux','Tendinopathie rotulienne / quadricipitale','Bursite prépatellaire','Kyste poplité (kyste de Baker)','Prothèse de genou (suites de pose)','Douleur mécanique','Contusion / œdème','Suspicion fracture'],
+  coude: ['Épicondylite latérale (tennis elbow)',"Épitrochléite (golfer's elbow)",'Bursite olécranienne (hygroma)','Tendinopathie du biceps / triceps','Syndrome du tunnel cubital (nerf ulnaire)','Douleur mécanique','Contusion / œdème','Suspicion fracture']
 };
 
 const objectifTemplates = {
@@ -700,6 +702,21 @@ const objectifTemplates = {
     court: "Diminuer la douleur et l'œdème, protéger le tendon / l'articulation",
     moyen: "Récupérer mobilité, force et proprioception de la cheville",
     long: "Reprise des appuis et de la marche sans instabilité résiduelle"
+  },
+  hanche: {
+    court: "Diminuer la douleur et l'inflammation, limiter les amplitudes douloureuses",
+    moyen: "Récupérer les amplitudes articulaires et renforcer la stabilité du bassin",
+    long: "Reprise des activités habituelles sans douleur ni boiterie"
+  },
+  genou: {
+    court: "Diminuer la douleur et l'épanchement, protéger l'articulation",
+    moyen: "Récupérer amplitude, force du quadriceps et stabilité fonctionnelle",
+    long: "Reprise des activités habituelles sans dérobement ni douleur résiduelle"
+  },
+  coude: {
+    court: "Diminuer la douleur et l'inflammation tendineuse, adapter les gestes déclenchants",
+    moyen: "Récupérer force et souplesse des muscles de l'avant-bras",
+    long: "Reprise des gestes habituels sans douleur ni récidive"
   }
 };
 
@@ -716,18 +733,18 @@ const zones = [
   {id:'epaule_gche',label:'Épaule gauche',view:'front',x:160,y:72,cat:'epaule'},
   {id:'bras_dt',label:'Bras droit',view:'front',x:40,y:120,cat:'muscle'},
   {id:'bras_gche',label:'Bras gauche',view:'front',x:160,y:120,cat:'muscle'},
-  {id:'coude_dt',label:'Coude droit',view:'front',x:40,y:160,cat:'articulation'},
-  {id:'coude_gche',label:'Coude gauche',view:'front',x:160,y:160,cat:'articulation'},
+  {id:'coude_dt',label:'Coude droit',view:'front',x:40,y:160,cat:'coude'},
+  {id:'coude_gche',label:'Coude gauche',view:'front',x:160,y:160,cat:'coude'},
   {id:'poignet_main_dt',label:'Poignet / Main droite',view:'front',x:46,y:190,cat:'pied_main'},
   {id:'poignet_main_gche',label:'Poignet / Main gauche',view:'front',x:154,y:190,cat:'pied_main'},
   {id:'thorax',label:'Thorax / cage thoracique',view:'front',x:100,y:105,cat:'muscle'},
   {id:'adducteurs',label:'Abdominaux / Adducteurs',view:'front',x:100,y:205,cat:'muscle'},
-  {id:'hanche_dte',label:'Hanche droite',view:'front',x:78,y:215,cat:'articulation'},
-  {id:'hanche_gche',label:'Hanche gauche',view:'front',x:122,y:215,cat:'articulation'},
+  {id:'hanche_dte',label:'Hanche droite',view:'front',x:78,y:215,cat:'hanche'},
+  {id:'hanche_gche',label:'Hanche gauche',view:'front',x:122,y:215,cat:'hanche'},
   {id:'quadriceps_dt',label:'Quadriceps droit',view:'front',x:80,y:260,cat:'muscle'},
   {id:'quadriceps_gche',label:'Quadriceps gauche',view:'front',x:120,y:260,cat:'muscle'},
-  {id:'genou_dt',label:'Genou droit',view:'front',x:84,y:310,cat:'articulation'},
-  {id:'genou_gche',label:'Genou gauche',view:'front',x:115,y:310,cat:'articulation'},
+  {id:'genou_dt',label:'Genou droit',view:'front',x:84,y:310,cat:'genou'},
+  {id:'genou_gche',label:'Genou gauche',view:'front',x:115,y:310,cat:'genou'},
   {id:'tibia_dt',label:'Tibia / jambe droite',view:'front',x:84,y:345,cat:'muscle'},
   {id:'tibia_gche',label:'Tibia / jambe gauche',view:'front',x:115,y:345,cat:'muscle'},
   {id:'cheville_dt',label:'Cheville droite',view:'front',x:84,y:368,cat:'cheville_achille'},
@@ -744,8 +761,8 @@ const zones = [
   {id:'fessier_gche',label:'Fessier gauche',view:'back',x:80,y:215,cat:'muscle'},
   {id:'ischio_dt',label:'Ischio-jambiers droit',view:'back',x:118,y:270,cat:'muscle'},
   {id:'ischio_gche',label:'Ischio-jambiers gauche',view:'back',x:82,y:270,cat:'muscle'},
-  {id:'poplite_dt',label:'Genou (creux poplité) droit',view:'back',x:115,y:310,cat:'articulation'},
-  {id:'poplite_gche',label:'Genou (creux poplité) gauche',view:'back',x:84,y:310,cat:'articulation'},
+  {id:'poplite_dt',label:'Genou (creux poplité) droit',view:'back',x:115,y:310,cat:'genou'},
+  {id:'poplite_gche',label:'Genou (creux poplité) gauche',view:'back',x:84,y:310,cat:'genou'},
   {id:'mollet_dt',label:'Mollet droit',view:'back',x:115,y:345,cat:'muscle'},
   {id:'mollet_gche',label:'Mollet gauche',view:'back',x:84,y:345,cat:'muscle'},
   {id:'achille_dt',label:"Tendon d'Achille / cheville droite",view:'back',x:115,y:368,cat:'cheville_achille'},
