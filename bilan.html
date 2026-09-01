@@ -590,8 +590,9 @@ auth.onAuthStateChanged(user=>{
     $('appWrap').style.display = 'block';
     $('dateBilan').value = new Date().toISOString().slice(0,10);
     populateLoadSelect();
-    const patientParam = new URLSearchParams(window.location.search).get('patient');
-    if(patientParam) openHistoryModal(patientParam);
+    const params = new URLSearchParams(window.location.search);
+    const pNom = params.get('nom'), pPrenom = params.get('prenom');
+    if(pNom || pPrenom) openHistoryModal(pNom, pPrenom);
   } else {
     $('loginScreen').style.display = 'flex';
     $('appWrap').style.display = 'none';
@@ -916,13 +917,20 @@ async function populateLoadSelect(){
 }
 
 // ===== HISTORIQUE JOUEUR =====
-async function openHistoryModal(preselectName){
+async function openHistoryModal(preselectNom, preselectPrenom){
   const bilans = await loadAllBilans();
   const names = [...new Set(bilans.map(b => ((b.joueurNom||'')+' '+(b.joueurPrenom||'')).trim()).filter(n=>n))].sort();
   const sel = $('historyPlayerSelect');
   sel.innerHTML = '<option value="">— Choisir un joueur —</option>' + names.map(n=>`<option value="${n}">${n}</option>`).join('');
-  const current = preselectName || ($('joueurNom').value+' '+$('joueurPrenom').value).trim();
-  if(current && names.includes(current)) sel.value = current;
+  let current;
+  if(preselectNom || preselectPrenom){
+    const target = `${preselectNom||''} ${preselectPrenom||''}`.trim().toLowerCase();
+    current = names.find(n => n.trim().toLowerCase() === target) || '';
+  } else {
+    const local = ($('joueurNom').value+' '+$('joueurPrenom').value).trim();
+    current = names.includes(local) ? local : '';
+  }
+  if(current) sel.value = current;
   await renderHistoryForPlayer(sel.value);
   $('historyOverlay').style.display = 'flex';
 }
