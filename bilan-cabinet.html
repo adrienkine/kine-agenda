@@ -662,10 +662,12 @@ $('evaSlider').addEventListener('input', e => $('evaValue').textContent = e.targ
 
 // ===== SCHÉMA CORPOREL =====
 const injuryLists = {
-  articulation: ['Entorse bénigne (stade 1)','Entorse moyenne (stade 2)','Entorse grave / rupture ligamentaire (stade 3)','Tendinopathie','Bursite','Instabilité chronique','Douleur mécanique','Contusion / œdème','Suspicion fracture','Arthrose','Capsulite rétractile / épaule gelée','Prothèse articulaire (suites de pose)'],
+  articulation: ['Entorse bénigne (stade 1)','Entorse moyenne (stade 2)','Entorse grave / rupture ligamentaire (stade 3)','Tendinopathie','Bursite','Instabilité chronique','Douleur mécanique','Contusion / œdème','Suspicion fracture','Arthrose','Prothèse articulaire (suites de pose)'],
   muscle: ['Contracture','Élongation','Claquage (déchirure partielle)','Rupture musculaire complète','Courbatures (DOMS)','Point douloureux (trigger point)','Hématome','Déconditionnement / faiblesse liée à l\u2019âge'],
   rachis: ['Lombalgie / dorsalgie mécanique','Contracture paravertébrale','Sciatalgie','Cervicalgie','Torticolis','Blocage articulaire postérieur','Hernie discale suspectée','Arthrose rachidienne','Névralgie cervico-brachiale','Radiculalgie (sciatique / cruralgie)','Scoliose'],
-  pied_main: ['Entorse','Suspicion fracture','Contusion','Ampoule / lésion cutanée','Tendinopathie','Crampe','Syndrome du canal carpien','Névralgie / compression nerveuse périphérique','Hallux valgus (suites opératoires)']
+  pied_main: ['Entorse','Suspicion fracture','Contusion','Ampoule / lésion cutanée','Tendinopathie','Crampe','Syndrome du canal carpien','Névralgie / compression nerveuse périphérique','Hallux valgus (suites opératoires)'],
+  epaule: ['Tendinopathie de la coiffe des rotateurs','Bursite sous-acromiale','Conflit sous-acromial','Capsulite rétractile / épaule gelée','Instabilité / luxation','Arthrose (omarthrose)',"Prothèse d'épaule (suites de pose)",'Contusion / œdème','Suspicion fracture'],
+  cheville_achille: ['Entorse bénigne (stade 1)','Entorse moyenne (stade 2)','Entorse grave / rupture ligamentaire (stade 3)','Tendinopathie achilléenne',"Rupture du tendon d'Achille",'Instabilité chronique de cheville','Bursite rétro-calcanéenne','Arthrose','Douleur mécanique','Contusion / œdème','Suspicion fracture']
 };
 
 const objectifTemplates = {
@@ -688,6 +690,16 @@ const objectifTemplates = {
     court: "Réduire l'œdème et la douleur, protéger la zone lésée",
     moyen: "Récupérer mobilité et proprioception locale",
     long: "Reprise des appuis / de la préhension sans compensation"
+  },
+  epaule: {
+    court: "Diminuer la douleur et l'inflammation, protéger la coiffe des rotateurs",
+    moyen: "Récupérer les amplitudes articulaires et la force de la coiffe des rotateurs",
+    long: "Reprise des activités habituelles sans douleur ni appréhension"
+  },
+  cheville_achille: {
+    court: "Diminuer la douleur et l'œdème, protéger le tendon / l'articulation",
+    moyen: "Récupérer mobilité, force et proprioception de la cheville",
+    long: "Reprise des appuis et de la marche sans instabilité résiduelle"
   }
 };
 
@@ -700,8 +712,8 @@ function appendObjectifLine(fieldId, text){
 
 const zones = [
   {id:'tete_cervical',label:'Tête / Cervical',view:'front',x:100,y:25,cat:'rachis'},
-  {id:'epaule_dte',label:'Épaule droite',view:'front',x:40,y:72,cat:'articulation'},
-  {id:'epaule_gche',label:'Épaule gauche',view:'front',x:160,y:72,cat:'articulation'},
+  {id:'epaule_dte',label:'Épaule droite',view:'front',x:40,y:72,cat:'epaule'},
+  {id:'epaule_gche',label:'Épaule gauche',view:'front',x:160,y:72,cat:'epaule'},
   {id:'bras_dt',label:'Bras droit',view:'front',x:40,y:120,cat:'muscle'},
   {id:'bras_gche',label:'Bras gauche',view:'front',x:160,y:120,cat:'muscle'},
   {id:'coude_dt',label:'Coude droit',view:'front',x:40,y:160,cat:'articulation'},
@@ -718,26 +730,26 @@ const zones = [
   {id:'genou_gche',label:'Genou gauche',view:'front',x:115,y:310,cat:'articulation'},
   {id:'tibia_dt',label:'Tibia / jambe droite',view:'front',x:84,y:345,cat:'muscle'},
   {id:'tibia_gche',label:'Tibia / jambe gauche',view:'front',x:115,y:345,cat:'muscle'},
-  {id:'cheville_dt',label:'Cheville droite',view:'front',x:84,y:368,cat:'articulation'},
-  {id:'cheville_gche',label:'Cheville gauche',view:'front',x:115,y:368,cat:'articulation'},
+  {id:'cheville_dt',label:'Cheville droite',view:'front',x:84,y:368,cat:'cheville_achille'},
+  {id:'cheville_gche',label:'Cheville gauche',view:'front',x:115,y:368,cat:'cheville_achille'},
   {id:'pied_dt',label:'Pied droit',view:'front',x:84,y:378,cat:'pied_main'},
   {id:'pied_gche',label:'Pied gauche',view:'front',x:115,y:378,cat:'pied_main'},
 
   {id:'nuque',label:'Nuque / Cervical (dos)',view:'back',x:100,y:25,cat:'rachis'},
-  {id:'epaule_dte_dos',label:'Épaule droite (dos)',view:'back',x:40,y:72,cat:'articulation'},
-  {id:'epaule_gche_dos',label:'Épaule gauche (dos)',view:'back',x:160,y:72,cat:'articulation'},
+  {id:'epaule_dte_dos',label:'Épaule droite (dos)',view:'back',x:160,y:72,cat:'epaule'},
+  {id:'epaule_gche_dos',label:'Épaule gauche (dos)',view:'back',x:40,y:72,cat:'epaule'},
   {id:'dos_haut',label:'Rachis dorsal / Trapèzes',view:'back',x:100,y:110,cat:'rachis'},
   {id:'lombaires',label:'Lombaires',view:'back',x:100,y:180,cat:'rachis'},
-  {id:'fessier_dt',label:'Fessier droit',view:'back',x:80,y:215,cat:'muscle'},
-  {id:'fessier_gche',label:'Fessier gauche',view:'back',x:120,y:215,cat:'muscle'},
-  {id:'ischio_dt',label:'Ischio-jambiers droit',view:'back',x:82,y:270,cat:'muscle'},
-  {id:'ischio_gche',label:'Ischio-jambiers gauche',view:'back',x:118,y:270,cat:'muscle'},
-  {id:'poplite_dt',label:'Genou (creux poplité) droit',view:'back',x:84,y:310,cat:'articulation'},
-  {id:'poplite_gche',label:'Genou (creux poplité) gauche',view:'back',x:115,y:310,cat:'articulation'},
-  {id:'mollet_dt',label:'Mollet droit',view:'back',x:84,y:345,cat:'muscle'},
-  {id:'mollet_gche',label:'Mollet gauche',view:'back',x:115,y:345,cat:'muscle'},
-  {id:'achille_dt',label:"Tendon d'Achille / cheville droite",view:'back',x:84,y:368,cat:'articulation'},
-  {id:'achille_gche',label:"Tendon d'Achille / cheville gauche",view:'back',x:115,y:368,cat:'articulation'}
+  {id:'fessier_dt',label:'Fessier droit',view:'back',x:120,y:215,cat:'muscle'},
+  {id:'fessier_gche',label:'Fessier gauche',view:'back',x:80,y:215,cat:'muscle'},
+  {id:'ischio_dt',label:'Ischio-jambiers droit',view:'back',x:118,y:270,cat:'muscle'},
+  {id:'ischio_gche',label:'Ischio-jambiers gauche',view:'back',x:82,y:270,cat:'muscle'},
+  {id:'poplite_dt',label:'Genou (creux poplité) droit',view:'back',x:115,y:310,cat:'articulation'},
+  {id:'poplite_gche',label:'Genou (creux poplité) gauche',view:'back',x:84,y:310,cat:'articulation'},
+  {id:'mollet_dt',label:'Mollet droit',view:'back',x:115,y:345,cat:'muscle'},
+  {id:'mollet_gche',label:'Mollet gauche',view:'back',x:84,y:345,cat:'muscle'},
+  {id:'achille_dt',label:"Tendon d'Achille / cheville droite",view:'back',x:115,y:368,cat:'cheville_achille'},
+  {id:'achille_gche',label:"Tendon d'Achille / cheville gauche",view:'back',x:84,y:368,cat:'cheville_achille'}
 ];
 
 let bodyEntries = []; // [{id, zoneId, type:'motif'|'antecedent', date, items:[...], autre:''}]
