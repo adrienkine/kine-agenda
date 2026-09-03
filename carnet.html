@@ -628,8 +628,8 @@ $('clearForm').addEventListener('click', () => {
 const PRATICIEN = {
   nom: 'Adrien Hervet',
   qualite: 'Masseur-kinésithérapeute D.E.',
-  adresse: '23 rue de la Mothe',
-  cp: '60600 Breuil-le-Vert',
+  adresse: '17 Ter rue Wenceslas Coutellier',
+  cp: '60600 Clermont',
   siret: '902 311 810 00045'
 };
 
@@ -640,7 +640,7 @@ function openInvoiceModal(){
     if(!info) return;
     $('invClubNom').value = info.nom || '';
     $('invClubAdresse').value = info.adresse || '';
-    $('invVille').value = info.ville || 'Breuil-le-Vert';
+    $('invVille').value = info.ville || 'Clermont';
   }).catch(()=>{});
   const today = new Date();
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
