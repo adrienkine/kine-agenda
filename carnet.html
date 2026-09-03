@@ -247,6 +247,20 @@
   }
   .toolnav a.active{color:#fff;border-bottom-color:var(--clay);}
   .toolnav a:hover{color:#fff;}
+
+  /* Modal facture */
+  .modal-overlay{position:fixed;inset:0;background:rgba(21,51,40,0.55);display:none;align-items:center;justify-content:center;z-index:200;padding:20px;}
+  .modal-overlay.open{display:flex;}
+  .modal-box{background:#fff;border-radius:6px;max-width:480px;width:100%;max-height:88vh;overflow-y:auto;}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:3px solid var(--pitch-deep);}
+  .modal-header h3{font-family:'Oswald',sans-serif;font-size:15px;text-transform:uppercase;color:var(--pitch-deep);margin:0;}
+  .modal-close{background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;}
+  .modal-body{padding:18px 20px;}
+  .field-row{display:flex;gap:10px;}
+  .field-row .field{flex:1;}
+  .modal-body label{font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--muted);font-weight:700;margin-bottom:4px;display:block;}
+  .modal-body input{width:100%;padding:8px 10px;border:1.5px solid var(--paper-line);border-radius:3px;font-family:'Inter',sans-serif;font-size:13.5px;margin-bottom:14px;}
+  #invoicePreviewInfo{font-size:12px;color:var(--muted);margin:4px 0 14px;padding:10px;background:#F5F3EC;border-radius:3px;}
 </style>
 </head>
 <body>
@@ -273,7 +287,10 @@
       <h1>Carnet de <span>terrain</span></h1>
       <div class="subtitle">Suivi des interventions — club de football</div>
     </div>
-    <select class="month-picker" id="monthPicker"></select>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button class="btn-primary" id="invoiceBtn" style="white-space:nowrap;">Facture club</button>
+      <select class="month-picker" id="monthPicker"></select>
+    </div>
   </header>
 
   <div class="scoreboard" id="scoreboard"></div>
@@ -344,6 +361,30 @@
   </div>
 
 </div>
+
+<div class="modal-overlay" id="invoiceOverlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Générer la facture club</h3>
+      <button class="modal-close" id="closeInvoice">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-row">
+        <div class="field"><label>Date de début</label><input type="date" id="invDateDebut"></div>
+        <div class="field"><label>Date de fin</label><input type="date" id="invDateFin"></div>
+      </div>
+      <label>Nom du club</label>
+      <input type="text" id="invClubNom" placeholder="Ex : FC Exemple">
+      <label>Adresse du club (facultatif)</label>
+      <input type="text" id="invClubAdresse" placeholder="Adresse postale du club">
+      <label>Ville (pour « Fait à … » de la déclaration)</label>
+      <input type="text" id="invVille" placeholder="Ex : Beauvais">
+      <div id="invoicePreviewInfo">Renseigne la période pour voir le nombre d'interventions et le montant concernés.</div>
+      <button class="btn-primary" id="generateInvoiceBtn" style="width:100%;">Générer facture + déclaration</button>
+    </div>
+  </div>
+</div>
+
 </div> <!-- /appWrap -->
 
 <script>
@@ -582,6 +623,155 @@ $('cancelEdit').addEventListener('click', () => {
 $('clearForm').addEventListener('click', () => {
   resetForm();
 });
+
+// ===== FACTURE CLUB + DÉCLARATION D'ABANDON DE RECETTE =====
+const PRATICIEN = {
+  nom: 'Adrien Hervet',
+  qualite: 'Masseur-kinésithérapeute D.E.',
+  adresse: '23 rue Georges Reboul',
+  cp: '84000 Avignon',
+  siret: '902 311 810 00045'
+};
+
+function openInvoiceModal(){
+  $('invoiceOverlay').classList.add('open');
+  db.ref('invoiceClubInfo').once('value').then(snap=>{
+    const info = snap.val();
+    if(!info) return;
+    $('invClubNom').value = info.nom || '';
+    $('invClubAdresse').value = info.adresse || '';
+    $('invVille').value = info.ville || '';
+  }).catch(()=>{});
+  const today = new Date();
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  $('invDateDebut').value = firstOfMonth.toISOString().slice(0,10);
+  $('invDateFin').value = today.toISOString().slice(0,10);
+  updateInvoicePreview();
+}
+$('invoiceBtn').addEventListener('click', openInvoiceModal);
+$('closeInvoice').addEventListener('click', ()=> $('invoiceOverlay').classList.remove('open'));
+$('invoiceOverlay').addEventListener('click', (e)=>{ if(e.target.id==='invoiceOverlay') $('invoiceOverlay').classList.remove('open'); });
+
+function getDonEntriesForPeriod(){
+  const debut = $('invDateDebut').value;
+  const fin = $('invDateFin').value;
+  if(!debut || !fin) return [];
+  return entries
+    .filter(e => e.statut === 'don' && e.date >= debut && e.date <= fin)
+    .sort((a,b) => a.date.localeCompare(b.date));
+}
+
+function updateInvoicePreview(){
+  const list = getDonEntriesForPeriod();
+  const total = list.reduce((s,e)=> s + (e.montant||0), 0);
+  $('invoicePreviewInfo').textContent = list.length
+    ? `${list.length} intervention${list.length>1?'s':''} en abandon de recette sur cette période, pour un total de ${fmtEuro(total)}.`
+    : 'Aucune intervention en abandon de recette sur cette période.';
+}
+$('invDateDebut').addEventListener('change', updateInvoicePreview);
+$('invDateFin').addEventListener('change', updateInvoicePreview);
+
+async function nextInvoiceNumber(){
+  const year = new Date().getFullYear();
+  const ref = db.ref('factureCounter/'+year);
+  const snap = await ref.once('value');
+  const n = (snap.val() || 0) + 1;
+  await ref.set(n);
+  return `F${year}-${String(n).padStart(3,'0')}`;
+}
+
+$('generateInvoiceBtn').addEventListener('click', async ()=>{
+  const clubNom = $('invClubNom').value.trim();
+  const clubAdresse = $('invClubAdresse').value.trim();
+  const ville = $('invVille').value.trim();
+  if(!clubNom){ alert('Merci de renseigner le nom du club.'); return; }
+  const list = getDonEntriesForPeriod();
+  if(!list.length){ alert('Aucune intervention en abandon de recette sur cette période.'); return; }
+
+  await db.ref('invoiceClubInfo').set({nom:clubNom, adresse:clubAdresse, ville}).catch(()=>{});
+
+  const numero = await nextInvoiceNumber();
+  const total = list.reduce((s,e)=> s + (e.montant||0), 0);
+  const today = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  const debutFr = new Date($('invDateDebut').value+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  const finFr = new Date($('invDateFin').value+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+
+  const rows = list.map(e => `
+    <tr>
+      <td>${new Date(e.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})}</td>
+      <td>${e.joueur || 'Effectif'}</td>
+      <td>${e.type}</td>
+      <td>${e.duree} min</td>
+      <td style="text-align:right;">${fmtEuro(e.montant)}</td>
+    </tr>`).join('');
+
+  const w = window.open('', '_blank');
+  if(!w){ alert("Le navigateur a bloqué l'ouverture de la fenêtre. Autorise les pop-ups pour ce site."); return; }
+  w.document.write(`<!DOCTYPE html><html><head><title>Facture ${numero}</title><meta charset="UTF-8">
+  <style>
+    body{font-family:Georgia,'Times New Roman',serif;font-size:13.5px;line-height:1.6;max-width:720px;margin:40px auto;color:#1c1f1b;}
+    h1{font-size:20px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #1c1f1b;padding-bottom:8px;}
+    .row{display:flex;justify-content:space-between;margin-bottom:24px;}
+    .box{width:48%;}
+    .label{font-size:10px;text-transform:uppercase;color:#7A7668;letter-spacing:0.5px;margin-bottom:4px;}
+    table{width:100%;border-collapse:collapse;margin:20px 0;}
+    th,td{padding:8px 10px;border-bottom:1px solid #ddd;text-align:left;font-size:13px;}
+    th{font-size:10px;text-transform:uppercase;color:#7A7668;letter-spacing:0.5px;}
+    .total-row td{font-weight:bold;border-top:2px solid #1c1f1b;border-bottom:none;font-size:15px;}
+    .mention{font-size:11px;color:#555;margin-top:6px;}
+    .page-break{page-break-before:always;margin-top:60px;padding-top:1px;}
+    .sign-block{margin-top:60px;display:flex;justify-content:space-between;}
+    .sign-line{border-bottom:1px solid #1c1f1b;width:220px;height:50px;}
+  </style>
+  </head><body>
+
+  <h1>Facture n° ${numero}</h1>
+  <div class="row">
+    <div class="box">
+      <div class="label">Émetteur</div>
+      ${PRATICIEN.nom}<br>${PRATICIEN.qualite}<br>${PRATICIEN.adresse}<br>${PRATICIEN.cp}<br>SIRET : ${PRATICIEN.siret}
+    </div>
+    <div class="box">
+      <div class="label">Facturé à</div>
+      ${clubNom}${clubAdresse ? '<br>'+clubAdresse : ''}
+    </div>
+  </div>
+  <p>Date d'émission : ${today}<br>Période concernée : du ${debutFr} au ${finFr}</p>
+
+  <table>
+    <thead><tr><th>Date</th><th>Joueur / effectif</th><th>Nature de la prestation</th><th>Durée</th><th style="text-align:right;">Montant</th></tr></thead>
+    <tbody>
+      ${rows}
+      <tr class="total-row"><td colspan="4">Total</td><td style="text-align:right;">${fmtEuro(total)}</td></tr>
+    </tbody>
+  </table>
+  <p class="mention">TVA non applicable — exonération art. 261-4-1° du Code Général des Impôts.</p>
+
+  <div class="page-break"></div>
+
+  <h1>Déclaration d'abandon de recette</h1>
+  <p>Je soussigné ${PRATICIEN.nom}, ${PRATICIEN.qualite}, SIRET ${PRATICIEN.siret}, déclare renoncer expressément au paiement de la facture n° ${numero} d'un montant de ${fmtEuro(total)}, émise le ${today} à l'attention de ${clubNom}, et laisse cette somme au club à titre de don.</p>
+  <p>Cet abandon de recette est consenti dans le cadre du dispositif prévu à l'article 200 du Code Général des Impôts relatif aux dons effectués au profit d'organismes d'intérêt général, sous réserve de l'éligibilité du club à ce régime.</p>
+  <p>Fait à ${ville || '_______________'}, le ${today}</p>
+
+  <div class="sign-block">
+    <div>
+      <div class="label">Signature du praticien</div>
+      <div class="sign-line"></div>
+    </div>
+    <div>
+      <div class="label">Signature et cachet du club (pour accord)</div>
+      <div class="sign-line"></div>
+    </div>
+  </div>
+
+  </body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>w.print(), 300);
+  $('invoiceOverlay').classList.remove('open');
+});
+// ===== FIN FACTURE CLUB =====
 
 // L'affichage initial est déclenché par attachEntriesListener() après connexion.
 </script>
