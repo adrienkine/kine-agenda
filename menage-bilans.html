@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ménage doublons bilans</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<style>
+  :root{
+    --paper:#FAF9F5; --ink:#1C1F1B; --pitch:#1F4A38; --pitch-deep:#153328;
+    --clay:#C87F3A; --clay-soft:#F0DCC4; --line:#DFDBCF; --muted:#7A7668; --card:#FFFFFF; --danger:#A8442E;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;padding:24px;}
+  #loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;}
+  #loginScreen h1{font-family:'Oswald',sans-serif;color:var(--pitch-deep);text-transform:uppercase;}
+  .login-box{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:32px;width:100%;max-width:340px;}
+  .login-box button{width:100%;padding:11px;background:var(--pitch-deep);color:var(--paper);border:none;border-radius:3px;cursor:pointer;font-weight:700;font-family:'Oswald',sans-serif;text-transform:uppercase;}
+  #appWrap{display:none;max-width:900px;margin:0 auto;}
+  h1.title{font-family:'Oswald',sans-serif;color:var(--pitch-deep);text-transform:uppercase;border-bottom:3px solid var(--pitch-deep);padding-bottom:12px;}
+  .source-block{margin-bottom:36px;}
+  .source-block h2{font-family:'Oswald',sans-serif;font-size:16px;color:var(--pitch-deep);text-transform:uppercase;}
+  .group{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:14px 16px;margin-bottom:12px;}
+  .group-title{font-family:'Oswald',sans-serif;font-weight:600;margin-bottom:8px;}
+  .entry{border-left:4px solid var(--line);padding:8px 12px;margin-bottom:6px;font-size:12.5px;background:#FAF9F5;}
+  .entry.keep{border-left-color:var(--pitch);}
+  .entry.remove{border-left-color:var(--danger);opacity:0.75;}
+  .entry .tag{font-size:10px;text-transform:uppercase;font-weight:700;letter-spacing:0.5px;}
+  .entry.keep .tag{color:var(--pitch);}
+  .entry.remove .tag{color:var(--danger);}
+  .entry .snippet{color:var(--muted);margin-top:3px;}
+  .empty{color:var(--muted);font-style:italic;padding:10px;}
+  button.action{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;padding:12px 22px;border-radius:3px;border:none;cursor:pointer;}
+  .btn-danger{background:var(--danger);color:#fff;}
+  .btn-ghost{background:transparent;border:1.5px solid var(--line);color:var(--muted);}
+  #summary{background:#F5F3EC;padding:14px 16px;border-radius:4px;margin-bottom:20px;font-size:13.5px;}
+  #actions{margin-top:20px;display:flex;gap:12px;}
+  #result{margin-top:20px;font-weight:600;}
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <h1>Ménage doublons bilans</h1>
+  <div class="login-box">
+    <button id="loginBtn">Se connecter avec Google</button>
+    <div id="loginError" style="color:var(--danger);font-size:12px;margin-top:10px;"></div>
+  </div>
+</div>
+
+<div id="appWrap">
+  <h1 class="title">Ménage des doublons de bilans</h1>
+  <div id="summary">Analyse en cours…</div>
+  <div id="content"></div>
+  <div id="actions" style="display:none;">
+    <button class="action btn-danger" id="confirmDelete">Supprimer les doublons identifiés</button>
+    <button class="action btn-ghost" id="cancelDelete">Ne rien supprimer</button>
+  </div>
+  <div id="result"></div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDAXysp9GV0ELMut66s6TkHO7QnkI6Bxzo",
+  authDomain: "agenda-kine-139f7.firebaseapp.com",
+  databaseURL: "https://agenda-kine-139f7-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "agenda-kine-139f7",
+  storageBucket: "agenda-kine-139f7.firebasestorage.app",
+  messagingSenderId: "707353671008",
+  appId: "1:707353671008:web:112a336521506579715a05"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+const $ = id => document.getElementById(id);
+
+$('loginBtn').addEventListener('click', ()=>{
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(err=>{ $('loginError').textContent = "Connexion impossible : " + err.message; });
+});
+
+auth.onAuthStateChanged(user=>{
+  if(user){
+    $('loginScreen').style.display = 'none';
+    $('appWrap').style.display = 'block';
+    runAnalysis();
+  } else {
+    $('loginScreen').style.display = 'flex';
+    $('appWrap').style.display = 'none';
+  }
+});
+
+const SOURCES = [
+  {key:'club-foot-bilans', label:'Bilans club (bilan.html)'},
+  {key:'cabinet-bilans-generaux', label:'Bilans cabinet (bilan-cabinet.html)'}
+];
+
+let plan = []; // [{key, keepList, removeList}]
+
+function snippetOf(b){
+  const parts = [];
+  if(b.motif) parts.push(stripHtml(b.motif));
+  if(b.diagnostic) parts.push(stripHtml(b.diagnostic));
+  const s = parts.join(' — ').trim();
+  return s ? (s.length > 140 ? s.slice(0,140)+'…' : s) : '(pas de motif/diagnostic saisi)';
+}
+function stripHtml(s){
+  const div = document.createElement('div');
+  div.innerHTML = s;
+  return (div.textContent || div.innerText || '').trim();
+}
+
+async function runAnalysis(){
+  plan = [];
+  const contentEl = $('content');
+  contentEl.innerHTML = '';
+  let totalGroups = 0, totalToRemove = 0;
+
+  for(const src of SOURCES){
+    const snap = await db.ref(src.key).once('value');
+    const list = snap.val() || [];
+
+    const groups = {};
+    list.forEach((b, idx) => {
+      const k = `${(b.joueurNom||'').trim().toLowerCase()}|${(b.joueurPrenom||'').trim().toLowerCase()}|${b.dateBilan||''}`;
+      if(!groups[k]) groups[k] = [];
+      groups[k].push({...b, _origIdx: idx});
+    });
+
+    const dupGroups = Object.entries(groups).filter(([k,arr]) => arr.length > 1 && k.trim() !== '||');
+
+    const block = document.createElement('div');
+    block.className = 'source-block';
+    block.innerHTML = `<h2>${src.label}</h2>`;
+
+    if(!dupGroups.length){
+      block.innerHTML += '<div class="empty">Aucun doublon détecté sur cette source.</div>';
+    } else {
+      const keepIdxs = new Set();
+      const removeIdxs = new Set();
+
+      dupGroups.forEach(([k, arr]) => {
+        totalGroups++;
+        const sorted = [...arr].sort((a,b)=> (b.savedAt||'').localeCompare(a.savedAt||''));
+        const toKeep = sorted[0];
+        const toRemove = sorted.slice(1);
+        keepIdxs.add(toKeep._origIdx);
+        toRemove.forEach(r => removeIdxs.add(r._origIdx));
+        totalToRemove += toRemove.length;
+
+        const nomAffiche = `${arr[0].joueurNom||''} ${arr[0].joueurPrenom||''}`.trim() || '(nom non renseigné)';
+        const dateAffichee = arr[0].dateBilan || 'date non renseignée';
+
+        const g = document.createElement('div');
+        g.className = 'group';
+        g.innerHTML = `<div class="group-title">${nomAffiche} — ${dateAffichee} (${arr.length} copies)</div>`;
+        sorted.forEach((b, i) => {
+          const e = document.createElement('div');
+          e.className = 'entry ' + (i===0 ? 'keep' : 'remove');
+          e.innerHTML = `<span class="tag">${i===0 ? 'CONSERVÉ (le plus récent)' : 'À SUPPRIMER'}</span> — enregistré le ${b.savedAt ? new Date(b.savedAt).toLocaleString('fr-FR') : 'date inconnue'}<div class="snippet">${snippetOf(b)}</div>`;
+          g.appendChild(e);
+        });
+        block.appendChild(g);
+      });
+
+      plan.push({key: src.key, list, keepIdxs, removeIdxs});
+    }
+    contentEl.appendChild(block);
+  }
+
+  $('summary').textContent = totalGroups
+    ? `${totalGroups} patient(s)/date(s) avec des doublons détectés, ${totalToRemove} entrée(s) au total seraient supprimées (la version la plus récemment enregistrée est toujours conservée).`
+    : 'Aucun doublon détecté sur les deux sources — rien à nettoyer.';
+
+  if(totalToRemove > 0) $('actions').style.display = 'flex';
+}
+
+$('confirmDelete').addEventListener('click', async ()=>{
+  if(!confirm('Confirmer la suppression des doublons identifiés ? Cette action est irréversible. La version la plus récente de chaque bilan est conservée.')) return;
+
+  for(const p of plan){
+    const cleaned = p.list.filter((b, idx) => !p.removeIdxs.has(idx));
+    await db.ref(p.key).set(cleaned);
+  }
+  $('result').textContent = 'Ménage effectué. Recharge tes fiches bilan pour voir le résultat.';
+  $('actions').style.display = 'none';
+});
+
+$('cancelDelete').addEventListener('click', ()=>{
+  $('result').textContent = 'Aucune suppression effectuée.';
+  $('actions').style.display = 'none';
+});
+</script>
+</body>
+</html>
