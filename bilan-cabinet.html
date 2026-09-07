@@ -770,6 +770,7 @@ const zones = [
 ];
 
 let bodyEntries = []; // [{id, zoneId, type:'motif'|'antecedent', date, items:[...], autre:''}]
+let editingBilanId = null; // id du bilan actuellement chargé (null = nouveau bilan)
 let activeZoneId = null;
 
 function bodyShapeSVG(){
@@ -1044,7 +1045,14 @@ async function renderHistoryForPlayer(name){
   tlEl.querySelectorAll('.history-open').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const bilansNow = await loadAllBilans();
-      fillForm(bilansNow[parseInt(btn.dataset.idx)]);
+      const idx = parseInt(btn.dataset.idx);
+      const record = bilansNow[idx];
+      if(!record.id){
+        record.id = Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+        await saveAllBilans(bilansNow);
+      }
+      editingBilanId = record.id;
+      fillForm(record);
       $('loadSelect').value = btn.dataset.idx;
       closeHistoryModal();
     });
@@ -1187,16 +1195,37 @@ $('saveBilan').addEventListener('click', async ()=>{
   const bilans = await loadAllBilans();
   const data = collectForm();
   data.savedAt = new Date().toISOString();
-  bilans.push(data);
+  if(editingBilanId){
+    const idx = bilans.findIndex(b => b.id === editingBilanId);
+    if(idx !== -1){
+      data.id = editingBilanId;
+      bilans[idx] = data;
+    } else {
+      data.id = Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+      bilans.push(data);
+      editingBilanId = data.id;
+    }
+  } else {
+    data.id = Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+    bilans.push(data);
+    editingBilanId = data.id;
+  }
   await saveAllBilans(bilans);
   await populateLoadSelect();
   alert('Bilan enregistré.');
 });
 
 $('loadSelect').addEventListener('change', async (e)=>{
-  if(e.target.value === '') return;
+  if(e.target.value === ''){ editingBilanId = null; return; }
   const bilans = await loadAllBilans();
-  fillForm(bilans[parseInt(e.target.value)]);
+  const idx = parseInt(e.target.value);
+  const record = bilans[idx];
+  if(!record.id){
+    record.id = Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+    await saveAllBilans(bilans);
+  }
+  editingBilanId = record.id;
+  fillForm(record);
 });
 
 $('deleteBilan').addEventListener('click', async ()=>{
@@ -1206,6 +1235,7 @@ $('deleteBilan').addEventListener('click', async ()=>{
   const idx = parseInt(sel.value);
   const label = sel.options[sel.selectedIndex].textContent;
   if(!confirm('Supprimer définitivement le bilan "'+label+'" ? Cette action est irréversible.')) return;
+  if(bilans[idx] && bilans[idx].id === editingBilanId) editingBilanId = null;
   bilans.splice(idx, 1);
   await saveAllBilans(bilans);
   await populateLoadSelect();
@@ -1213,6 +1243,7 @@ $('deleteBilan').addEventListener('click', async ()=>{
 });
 
 $('newBilan').addEventListener('click', ()=>{
+  editingBilanId = null;
   inputIds.forEach(id => $(id).value = '');
   contentIds.forEach(id => $(id).innerHTML = '');
   $('evaSlider').value = 0; $('evaValue').textContent = '0';
