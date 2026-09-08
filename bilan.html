@@ -178,6 +178,7 @@
     margin-bottom:7px;line-height:1.35;cursor:pointer;
   }
   .zone-checklist input{margin-top:2px;width:14px;height:14px;flex-shrink:0;accent-color:var(--pitch);}
+  .fracture-precision{width:100%;margin:2px 0 8px 20px;padding:6px 8px;border:1px solid var(--clay);border-radius:3px;font-size:11.5px;font-family:'Inter',sans-serif;background:#FFF9F2;}
   .zone-history{margin-top:12px;border-top:1px solid var(--line);padding-top:8px;}
   .zh-entry{
     font-size:11.5px;line-height:1.4;margin-bottom:8px;padding:6px 8px;
@@ -668,8 +669,8 @@ $('evaSlider').addEventListener('input', e => $('evaValue').textContent = e.targ
 
 // ===== SCHÉMA CORPOREL =====
 const injuryLists = {
-  muscle: ['Contracture','Élongation','Claquage (déchirure partielle)','Rupture musculaire complète','Courbatures (DOMS)','Point douloureux (trigger point)','Hématome'],
-  rachis: ['Lombalgie / dorsalgie mécanique','Contracture paravertébrale','Sciatalgie','Cervicalgie','Torticolis','Blocage articulaire postérieur','Hernie discale suspectée'],
+  muscle: ['Contracture','Élongation','Claquage (déchirure partielle)','Rupture musculaire complète','Arrachement osseux (avulsion)','Courbatures (DOMS)','Point douloureux (trigger point)','Hématome'],
+  rachis: ['Lombalgie / dorsalgie mécanique','Contracture paravertébrale','Sciatalgie','Cervicalgie','Torticolis','Blocage articulaire postérieur','Hernie discale suspectée','Tassement vertébral (suspicion fracture)'],
   pied_main: ['Entorse','Suspicion fracture','Contusion','Ampoule / lésion cutanée','Tendinopathie','Crampe'],
   epaule: ['Tendinopathie de la coiffe des rotateurs','Bursite sous-acromiale','Conflit sous-acromial','Capsulite rétractile / épaule gelée','Instabilité / luxation','Arthrose (omarthrose)',"Contusion / œdème",'Suspicion fracture'],
   cheville_achille: ['Entorse bénigne (stade 1)','Entorse moyenne (stade 2)','Entorse grave / rupture ligamentaire (stade 3)','Tendinopathie achilléenne',"Rupture du tendon d'Achille",'Instabilité chronique de cheville','Bursite rétro-calcanéenne','Douleur mécanique','Contusion / œdème','Suspicion fracture'],
@@ -827,9 +828,18 @@ function openZonePanel(zoneId){
   panel.style.display = 'block';
   $('zonePanelTitle').textContent = z.label;
   const list = injuryLists[z.cat];
-  $('zoneChecklist').innerHTML = list.map(item=>`
-    <label><input type="checkbox" data-item="${item}"> ${item}</label>
-  `).join('');
+  $('zoneChecklist').innerHTML = list.map(item=>{
+    const isFrac = /fracture/i.test(item);
+    return `<label><input type="checkbox" data-item="${item}"> ${item}</label>` +
+      (isFrac ? `<input type="text" class="fracture-precision" data-for="${item}" style="display:none;" placeholder="Préciser l'os / la localisation exacte (ex : 5ème métatarsien)">` : '');
+  }).join('');
+  $('zoneChecklist').querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      if(!/fracture/i.test(cb.dataset.item)) return;
+      const precisionInput = $('zoneChecklist').querySelector(`.fracture-precision[data-for="${cb.dataset.item}"]`);
+      if(precisionInput) precisionInput.style.display = cb.checked ? 'block' : 'none';
+    });
+  });
   $('zoneAutre').innerHTML = '';
   $('zoneDate').value = $('dateBilan').value || new Date().toISOString().slice(0,10);
   document.querySelector('input[name=zoneType][value=motif]').checked = true;
@@ -862,7 +872,14 @@ function renderZoneHistory(zoneId){
 
 $('addZoneEntry').addEventListener('click', ()=>{
   if(!activeZoneId) return;
-  const checked = Array.from(document.querySelectorAll('#zoneChecklist input:checked')).map(cb=>cb.dataset.item);
+  const checked = Array.from(document.querySelectorAll('#zoneChecklist input:checked')).map(cb=>{
+    if(/fracture/i.test(cb.dataset.item)){
+      const precisionInput = $('zoneChecklist').querySelector(`.fracture-precision[data-for="${cb.dataset.item}"]`);
+      const precision = precisionInput ? precisionInput.value.trim() : '';
+      if(precision) return `${cb.dataset.item} (${precision})`;
+    }
+    return cb.dataset.item;
+  });
   const autre = $('zoneAutre').innerHTML;
   if(!checked.length && !(autre && autre.trim())){
     alert('Coche au moins une pathologie ou ajoute une précision.');
