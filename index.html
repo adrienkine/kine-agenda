@@ -417,13 +417,19 @@
       <div><label class="lbl" id="b-date-end-label">Date fin</label><input class="inp" type="date" id="b-date-end"/></div>
       <div><label class="lbl">Heure début</label><select class="inp" id="b-heure-start"></select></div>
       <div><label class="lbl">Heure fin</label><select class="inp" id="b-heure-end"></select></div>
-      <div class="form-full" style="display:flex;gap:20px;margin:2px 0 6px;">
+      <div class="form-full" style="display:flex;gap:20px;margin:2px 0 6px;flex-wrap:wrap;">
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
           <input type="checkbox" id="b-recurring" onchange="onRecurringToggle()"> Se répète chaque semaine
         </label>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
           <input type="checkbox" id="b-wholeday" onchange="onWholeDayToggle()"> Journée entière
         </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="b-continuous" onchange="onContinuousToggle()"> Blocage continu multi-jours
+        </label>
+      </div>
+      <div id="b-continuous-help" style="display:none;font-size:11px;color:var(--text-muted);margin:-2px 0 8px;">
+        Bloque à partir de l'heure de début le premier jour, les jours intermédiaires en entier, jusqu'à l'heure de fin le dernier jour. Ex : jeudi 13h → vendredi 20h bloque le jeudi après-midi + le vendredi entier.
       </div>
       <div class="form-full"><label class="lbl">Motif du blocage</label>
         <select class="inp" id="b-type">
@@ -614,8 +620,15 @@ function blockMatchFor(dateStr,slot){
   const slotMin=slotToMin(slot);
   const dow=new Date(dateStr+'T00:00:00').getDay();
   const b=blocks.find(bl=>{
-    if(bl.recurring){ if(dow!==bl.dayOfWeek) return false; if(dateStr<bl.dateStart||dateStr>bl.dateEnd) return false; }
-    else { if(dateStr<bl.dateStart||dateStr>bl.dateEnd) return false; }
+    if(bl.recurring){ if(dow!==bl.dayOfWeek) return false; if(dateStr<bl.dateStart||dateStr>bl.dateEnd) return false; return slotMin>=slotToMin(bl.heureStart)&&slotMin<slotToMin(bl.heureEnd); }
+    if(bl.continuous){
+      if(dateStr<bl.dateStart||dateStr>bl.dateEnd) return false;
+      if(bl.dateStart===bl.dateEnd) return slotMin>=slotToMin(bl.heureStart)&&slotMin<slotToMin(bl.heureEnd);
+      if(dateStr===bl.dateStart) return slotMin>=slotToMin(bl.heureStart);
+      if(dateStr===bl.dateEnd) return slotMin<slotToMin(bl.heureEnd);
+      return true;
+    }
+    if(dateStr<bl.dateStart||dateStr>bl.dateEnd) return false;
     return slotMin>=slotToMin(bl.heureStart)&&slotMin<slotToMin(bl.heureEnd);
   });
   if(!b) return null;
@@ -888,17 +901,24 @@ function renderFeriesList(){const container=document.getElementById('feries-list
 // ══════════════════════════════════════════════════════
 // BLOC MODAL
 // ══════════════════════════════════════════════════════
-function openBlockModal(){document.getElementById('b-date-start').value=today();document.getElementById('b-date-end').value=today();document.getElementById('b-recurring').checked=false;document.getElementById('b-wholeday').checked=false;document.getElementById('b-heure-start').disabled=false;document.getElementById('b-heure-end').disabled=false;document.getElementById('b-date-end-label').textContent='Date fin';document.getElementById('b-heure-start').value='12:00';document.getElementById('b-heure-end').value='14:00';renderBlocList();renderFeriesList();document.getElementById('block-overlay').classList.add('open');}
-function onRecurringToggle(){const rec=document.getElementById('b-recurring').checked;document.getElementById('b-date-end-label').textContent=rec?"Se répète jusqu'au":'Date fin';}
+function openBlockModal(){document.getElementById('b-date-start').value=today();document.getElementById('b-date-end').value=today();document.getElementById('b-recurring').checked=false;document.getElementById('b-wholeday').checked=false;document.getElementById('b-continuous').checked=false;document.getElementById('b-continuous-help').style.display='none';document.getElementById('b-heure-start').disabled=false;document.getElementById('b-heure-end').disabled=false;document.getElementById('b-date-end-label').textContent='Date fin';document.getElementById('b-heure-start').value='12:00';document.getElementById('b-heure-end').value='14:00';renderBlocList();renderFeriesList();document.getElementById('block-overlay').classList.add('open');}
+function onRecurringToggle(){const rec=document.getElementById('b-recurring').checked;document.getElementById('b-date-end-label').textContent=rec?"Se répète jusqu'au":'Date fin';if(rec){document.getElementById('b-continuous').checked=false;document.getElementById('b-continuous-help').style.display='none';}}
+function onContinuousToggle(){const cont=document.getElementById('b-continuous').checked;document.getElementById('b-continuous-help').style.display=cont?'block':'none';if(cont){document.getElementById('b-recurring').checked=false;document.getElementById('b-date-end-label').textContent='Date fin';}}
 function onWholeDayToggle(){const whole=document.getElementById('b-wholeday').checked;const hs=document.getElementById('b-heure-start'),he=document.getElementById('b-heure-end');if(whole){hs.value='07:00';he.value='20:00';hs.disabled=true;he.disabled=true;}else{hs.disabled=false;he.disabled=false;}}
 function quickBlockDay(dateStr){openBlockModal();document.getElementById('b-date-start').value=dateStr;document.getElementById('b-date-end').value=dateStr;document.getElementById('b-wholeday').checked=true;onWholeDayToggle();}
 function quickBlockSlot(dateStr,slot){openBlockModal();document.getElementById('b-date-start').value=dateStr;document.getElementById('b-date-end').value=dateStr;document.getElementById('b-heure-start').value=slot;const idx=SLOTS.indexOf(slot);document.getElementById('b-heure-end').value=SLOTS[idx+4]||'20:00';}
 function closeBlockModal(){document.getElementById('block-overlay').classList.remove('open');}
-function computeBlockConflicts(ds,de,hs,he,recurring,dayOfWeek){
+function computeBlockConflicts(ds,de,hs,he,recurring,dayOfWeek,continuous){
   const hsMin=slotToMin(hs),heMin=slotToMin(he);
   return rdvs.filter(r=>{
     if(r.date<ds||r.date>de) return false;
-    if(recurring){ const dow=new Date(r.date+'T00:00:00').getDay(); if(dow!==dayOfWeek) return false; }
+    if(recurring){ const dow=new Date(r.date+'T00:00:00').getDay(); if(dow!==dayOfWeek) return false; return slotToMin(r.heure)>=hsMin&&slotToMin(r.heure)<heMin; }
+    if(continuous && ds!==de){
+      const rMin=slotToMin(r.heure);
+      if(r.date===ds) return rMin>=hsMin;
+      if(r.date===de) return rMin<heMin;
+      return true;
+    }
     const rMin=slotToMin(r.heure);
     return rMin>=hsMin&&rMin<heMin;
   });
@@ -908,25 +928,27 @@ function saveBlock(){
   if(!ds||!de||!hs||!he){alert('Veuillez remplir toutes les dates et heures.');return;}
   if(de<ds){alert('La date de fin doit être après la date de début.');return;}
   const recurring=document.getElementById('b-recurring').checked;
+  const continuous=document.getElementById('b-continuous').checked;
   const dayOfWeek=recurring?new Date(ds+'T00:00:00').getDay():null;
-  const conflicts=computeBlockConflicts(ds,de,hs,he,recurring,dayOfWeek);
+  const conflicts=computeBlockConflicts(ds,de,hs,he,recurring,dayOfWeek,continuous);
   if(conflicts.length){
-    const noms=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
     const list=conflicts.slice(0,8).map(r=>`• ${formatDateFr(r.date)} ${r.heure} — ${r.prenom||''} ${r.nom||''}`).join('\n');
     const more=conflicts.length>8?`\n… et ${conflicts.length-8} autre(s)`:'';
     if(!confirm(`${conflicts.length} rendez-vous existe(nt) déjà sur cette période :\n${list}${more}\n\nBloquer quand même ?`)) return;
   }
-  blocks.push({id:`${Date.now()}_${Math.random().toString(36).slice(2,6)}`,dateStart:ds,dateEnd:de,heureStart:hs,heureEnd:he,type,note,recurring,dayOfWeek});
+  blocks.push({id:`${Date.now()}_${Math.random().toString(36).slice(2,6)}`,dateStart:ds,dateEnd:de,heureStart:hs,heureEnd:he,type,note,recurring,dayOfWeek,continuous});
   persistBlocks();renderBlocList();render();showToast('Plage bloquée enregistrée','🚫');
   document.getElementById('b-note').value='';
   document.getElementById('b-recurring').checked=false;
   document.getElementById('b-wholeday').checked=false;
+  document.getElementById('b-continuous').checked=false;
+  document.getElementById('b-continuous-help').style.display='none';
   document.getElementById('b-heure-start').disabled=false;
   document.getElementById('b-heure-end').disabled=false;
   document.getElementById('b-date-end-label').textContent='Date fin';
 }
 function deleteBlock(id){blocks=blocks.filter(b=>b.id!==id);persistBlocks();renderBlocList();render();}
-function renderBlocList(){const list=document.getElementById('bloc-list');if(!blocks.length){list.innerHTML='<div style="font-size:12px;color:#2a3d55;text-align:center;padding:12px">Aucune plage bloquée</div>';return;}list.innerHTML='';[...blocks].sort((a,b)=>a.dateStart.localeCompare(b.dateStart)).forEach(b=>{const item=document.createElement('div');item.className='bloc-item';const dowNoms=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];const same=b.dateStart===b.dateEnd;const dateStr=b.recurring?`Chaque ${dowNoms[b.dayOfWeek]}, jusqu'au ${formatDateFr(b.dateEnd)}`:(same?formatDateFr(b.dateStart):`${formatDateFr(b.dateStart)} → ${formatDateFr(b.dateEnd)}`);item.innerHTML=`<div><div class="bloc-info">${b.type}${b.note?' — '+b.note:''}</div><div class="bloc-sub">${dateStr} · ${b.heureStart} → ${b.heureEnd}</div></div><button class="bloc-del" onclick="deleteBlock('${b.id}')">✕</button>`;list.appendChild(item);});}
+function renderBlocList(){const list=document.getElementById('bloc-list');if(!blocks.length){list.innerHTML='<div style="font-size:12px;color:#2a3d55;text-align:center;padding:12px">Aucune plage bloquée</div>';return;}list.innerHTML='';[...blocks].sort((a,b)=>a.dateStart.localeCompare(b.dateStart)).forEach(b=>{const item=document.createElement('div');item.className='bloc-item';const dowNoms=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];const same=b.dateStart===b.dateEnd;const dateStr=b.recurring?`Chaque ${dowNoms[b.dayOfWeek]}, jusqu'au ${formatDateFr(b.dateEnd)}`:(b.continuous&&!same?`${formatDateFr(b.dateStart)} ${b.heureStart} → ${formatDateFr(b.dateEnd)} ${b.heureEnd} (continu)`:(same?formatDateFr(b.dateStart):`${formatDateFr(b.dateStart)} → ${formatDateFr(b.dateEnd)}`));item.innerHTML=`<div><div class="bloc-info">${b.type}${b.note?' — '+b.note:''}</div><div class="bloc-sub">${dateStr}${b.continuous&&!same?'':' · '+b.heureStart+' → '+b.heureEnd}</div></div><button class="bloc-del" onclick="deleteBlock('${b.id}')">✕</button>`;list.appendChild(item);});}
 
 // ══════════════════════════════════════════════════════
 // HISTORIQUE (onglet modal)
