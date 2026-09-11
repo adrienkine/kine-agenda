@@ -473,6 +473,15 @@
     </section>
 
     <section>
+      <h3>Examens complémentaires</h3>
+      <table class="bilan-table" id="tableExamens">
+        <thead><tr><th style="width:25%;">Type d'examen</th><th style="width:20%;">Date</th><th style="width:55%;">Résultat / conclusion</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="table-actions"><button class="btn-ghost" data-add="tableExamens" data-cols="3">+ Ajouter une ligne</button></div>
+    </section>
+
+    <section>
       <h3>Tests spécifiques réalisés</h3>
       <div class="field-input" contenteditable="true" id="testsSpecifiques" data-placeholder="Nom du test — résultat (ex : Lachman négatif, Thessaly positif…)"></div>
     </section>
@@ -660,7 +669,7 @@ document.querySelectorAll('[data-add]').forEach(btn=>{
   btn.addEventListener('click', ()=> addRow(btn.dataset.add, parseInt(btn.dataset.cols)));
 });
 // Start each table with 3 empty rows
-['tableArticulaire','tableMusculaire'].forEach(id=>{
+['tableArticulaire','tableMusculaire','tableExamens'].forEach(id=>{
   const cols = id === 'tableArticulaire' ? 4 : 3;
   for(let i=0;i<3;i++) addRow(id, cols);
 });
@@ -958,6 +967,7 @@ function collectForm(){
   data.aptitude = (document.querySelector('input[name=aptitude]:checked') || {}).value || '';
   data.tableArticulaire = getTableData('tableArticulaire');
   data.tableMusculaire = getTableData('tableMusculaire');
+  data.tableExamens = getTableData('tableExamens');
   data.bodyEntries = bodyEntries;
   return data;
 }
@@ -972,6 +982,7 @@ function fillForm(data){
   }
   setTableData('tableArticulaire', data.tableArticulaire);
   setTableData('tableMusculaire', data.tableMusculaire);
+  setTableData('tableExamens', data.tableExamens);
   bodyEntries = data.bodyEntries || [];
   activeZoneId = null;
   $('zonePanel').style.display = 'none';
@@ -1274,6 +1285,7 @@ $('newBilan').addEventListener('click', ()=>{
   document.querySelectorAll('input[name=aptitude]').forEach(r=>r.checked=false);
   setTableData('tableArticulaire', null);
   setTableData('tableMusculaire', null);
+  setTableData('tableExamens', null);
   $('dateBilan').value = new Date().toISOString().slice(0,10);
   $('loadSelect').value = '';
   bodyEntries = [];
