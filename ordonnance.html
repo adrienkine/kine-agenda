@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ordonnance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<style>
+  :root{--bg:#EDEAE1;--ink:#1C1F1B;--muted:#7A7668;--line:#D8D5CC;--accent:#153328;--accent-ink:#FAF9F5;--panel:#FAF9F5;--clay:#C87F3A;--danger:#B3402B}
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font:15px/1.45 'Inter',system-ui,sans-serif}
+  .app{display:grid;grid-template-columns:minmax(330px,450px) 1fr;gap:24px;max-width:1200px;margin:0 auto;padding:24px}
+  @media (max-width:900px){.app{grid-template-columns:1fr;padding:14px}}
+  .form{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 18px 8px}
+  h1{font-family:'Oswald',sans-serif;font-size:19px;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+  fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:12px 0 8px}
+  legend{font-weight:650;padding:0 8px 0 0;font-size:14px}
+  label{display:block;font-size:13px;color:var(--muted);margin:8px 0 3px}
+  input[type=text],select,textarea{width:100%;font:inherit;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+  input[type=text]:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+  textarea{resize:vertical;min-height:64px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .opt{display:flex;align-items:center;gap:8px;margin:8px 0 3px;font-size:13px}
+  .opt input{margin:0}
+  .opt label{margin:0;color:var(--ink);font-size:14px}
+  .opt.muted label{color:var(--muted);font-size:13px}
+  .checks{display:grid;grid-template-columns:1fr;gap:0;margin-top:2px}
+  .sublabel{font-size:13px;color:var(--muted);margin:12px 0 2px}
+  details{border-top:1px solid var(--line);padding:10px 0}
+  summary{cursor:pointer;font-weight:650;font-size:14px}
+  .note{font-size:12.5px;color:var(--muted);background:#e6eeea;border-radius:6px;padding:8px 10px;margin:10px 0}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 10px}
+  button{font:inherit;cursor:pointer;border-radius:6px;padding:8px 12px;border:1px solid var(--accent);background:#fff;color:var(--accent)}
+  button.primary{background:var(--accent);color:var(--accent-ink)}
+  button.link{border:0;background:none;padding:2px 0;font-size:13px;text-decoration:underline}
+  button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .status{font-size:13px;color:var(--accent);min-height:18px;margin-bottom:8px}
+  .sheet-wrap{overflow:auto}
+  .paper{background:#fff;border:1px solid var(--line);box-shadow:0 1px 3px rgba(0,0,0,.12);
+    width:100%;max-width:210mm;min-height:150mm;margin:0 auto;padding:16mm 18mm;
+    font:12.5pt/1.55 Georgia,"Times New Roman",serif;color:#111}
+  .paper .id{font-size:11.5pt;line-height:1.4}
+  .paper .id b{font-size:13.5pt}
+  .paper hr{border:0;border-top:1px solid #111;margin:12px 0 18px}
+  .paper .lieu{text-align:right;margin:0 0 18px}
+  .paper h2{text-align:center;letter-spacing:.14em;font-size:15pt;margin:0 0 22px}
+  .paper p{margin:0 0 14px}
+  .blank{display:inline-block;min-width:80px;border-bottom:1px dotted #444;height:1em;vertical-align:baseline}
+  .sign{margin-top:36px;margin-left:auto;width:230px;font-size:11pt}
+  .sign div{border:1px solid #777;height:90px;margin-top:6px}
+  
+  .hint{font-size:12.5px;color:var(--muted);margin-top:4px;min-height:16px}
+  #loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+  #loginScreen h1{color:var(--accent);font-size:24px;letter-spacing:1px}
+  .login-box{background:#fff;border:1px solid var(--line);border-radius:6px;padding:32px;width:100%;max-width:340px}
+  .login-box button{width:100%;padding:11px;background:var(--accent);color:var(--accent-ink);border:none;border-radius:3px;font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+  #loginError{color:var(--danger);font-size:12px;margin-top:10px;min-height:16px}
+  #appWrap{display:none}
+  .toolnav{display:flex;gap:0;justify-content:center;background:#153328;flex-wrap:wrap}
+  .toolnav a{padding:12px 22px;color:#B9CFC3;text-decoration:none;font-family:'Oswald',sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;border-bottom:3px solid transparent}
+  .toolnav a.active{color:#fff;border-bottom-color:var(--clay)}
+  .toolnav a:hover{color:#fff}
+  @media print{
+    .toolnav{display:none}
+    @page{size:A4;margin:14mm}
+    body{background:#fff}
+    .form{display:none}
+    .app{display:block;padding:0;max-width:none}
+    .paper{border:0;box-shadow:none;padding:0;max-width:none;min-height:0}
+  }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <h1>Ordonnance</h1>
+  <div class="login-box">
+    <button id="loginBtn">Se connecter avec Google</button>
+    <div id="loginError"></div>
+  </div>
+</div>
+
+<div id="appWrap">
+<nav class="toolnav">
+  <a href="index.html">Agenda</a>
+  <a href="carnet.html">Carnet</a>
+  <a href="bilan.html">Bilan Club</a>
+  <a href="bilan-cabinet.html">Bilan Cabinet</a>
+  <a href="ordonnance.html" class="active">Ordonnance</a>
+</nav>
+<div class="app">
+  <div class="form">
+    <h1>Ordonnance de dispositif médical</h1>
+    <p class="sub">Remplis, vérifie l'aperçu, puis imprime ou copie le texte.</p>
+
+    <div class="toolbar">
+      <button class="primary" id="btnPrint" type="button">Imprimer / enregistrer en PDF</button>
+      <button id="btnCopy" type="button">Copier le texte</button>
+      <button id="btnNew" type="button">Nouveau patient</button>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+
+    <fieldset>
+      <legend>Patient</legend>
+      <label for="patSearch">Patient de l'agenda</label>
+      <input type="text" id="patSearch" list="patList" placeholder="Tape un nom pour préremplir" autocomplete="off">
+      <datalist id="patList"></datalist>
+      <div class="hint" id="patHint"></div>
+      <div class="row">
+        <div><label for="nom">Nom</label><input type="text" id="nom" autocomplete="off"></div>
+        <div><label for="prenom">Prénom</label><input type="text" id="prenom" autocomplete="off"></div>
+      </div>
+      <div class="row">
+        <div><label for="ddn">Date de naissance</label><input type="text" id="ddn" placeholder="jj/mm/aaaa" autocomplete="off"></div>
+        <div><label for="date">Date de l'ordonnance</label><input type="text" id="date" autocomplete="off"></div>
+      </div>
+      <div class="opt muted"><input type="checkbox" id="incNss"><label for="incNss">Afficher le n° de sécurité sociale</label></div>
+      <input type="text" id="nss" placeholder="n° de sécurité sociale" autocomplete="off">
+    </fieldset>
+
+    <fieldset>
+      <legend>Dispositif</legend>
+      <label for="preset">Modèle rapide</label>
+      <select id="preset"></select>
+
+      <label for="kind">Type de dispositif</label>
+      <select id="kind">
+        <option value="orth">Orthèse</option>
+        <option value="attelle">Attelle</option>
+        <option value="contention">Contention souple élastique</option>
+        <option value="lombaire">Ceinture de soutien lombaire</option>
+        <option value="collier">Collier cervical de repos</option>
+        <option value="marche">Aide à la déambulation</option>
+        <option value="libre">Libellé libre</option>
+      </select>
+
+      <div data-k="marche" hidden>
+        <label for="aide">Aide</label>
+        <select id="aide">
+          <option>Cannes anglaises (béquilles)</option>
+          <option>Canne simple</option>
+          <option>Béquilles axillaires</option>
+          <option>Déambulateur</option>
+        </select>
+      </div>
+
+      <div data-k="orth attelle contention">
+        <div class="row">
+          <div><label for="seg">Segment</label><select id="seg"></select></div>
+          <div><label for="cote">Côté</label>
+            <select id="cote">
+              <option value="">Non précisé</option>
+              <option value="droit">Droit</option>
+              <option value="gauche">Gauche</option>
+              <option value="bilat">Bilatéral</option>
+            </select></div>
+        </div>
+      </div>
+
+      <div data-k="orth attelle">
+        <div class="row">
+          <div><label for="rig">Structure</label>
+            <select id="rig">
+              <option value="">Non précisée</option>
+              <option value="souple">Souple</option>
+              <option value="rigide">Rigide</option>
+              <option value="articulee">Articulée</option>
+              <option value="rigart">Rigide ou articulée</option>
+              <option value="thermo">Thermoformable</option>
+            </select></div>
+          <div><label for="fonction">Fonction</label>
+            <select id="fonction">
+              <option value="">Non précisée</option>
+              <option value="stab">Stabilisation</option>
+              <option value="immo">Immobilisation</option>
+              <option value="decharge">Décharge</option>
+              <option value="repos">Repos</option>
+              <option value="posture">Posture</option>
+              <option value="corr">Correction orthopédique</option>
+            </select></div>
+        </div>
+        <label for="conf">Confection</label>
+        <select id="conf">
+          <option value="serie">De série</option>
+          <option value="mesure">Sur mesure</option>
+          <option value="">Non précisée</option>
+        </select>
+
+        <div class="sublabel">Caractéristiques</div>
+        <div class="checks">
+          <div class="opt"><input type="checkbox" id="o_lat"><label for="o_lat">Renforts latéraux</label></div>
+          <div class="opt"><input type="checkbox" id="o_rot"><label for="o_rot">Contrôle des rotations</label></div>
+          <div class="opt"><input type="checkbox" id="o_rotule"><label for="o_rotule">Ouverture rotulienne</label></div>
+          <div class="opt"><input type="checkbox" id="o_sangle"><label for="o_sangle">Sangles de maintien</label></div>
+          <div class="opt"><input type="checkbox" id="o_tuteur"><label for="o_tuteur">Tuteurs latéraux articulés</label></div>
+          <div class="opt"><input type="checkbox" id="o_ext"><label for="o_ext">Butée d'extension</label></div>
+        </div>
+        <label for="amp">Limitation d'amplitude (facultatif)</label>
+        <input type="text" id="amp" placeholder="ex. flexion limitée à 90°" autocomplete="off">
+      </div>
+
+      <div data-k="orth attelle contention lombaire collier">
+        <label for="taille">Taille (facultatif)</label>
+        <input type="text" id="taille" placeholder="ex. M, à mesurer en pharmacie" autocomplete="off">
+      </div>
+
+      <label for="dispositif">Libellé final (modifiable)</label>
+      <textarea id="dispositif"></textarea>
+      <button class="link" id="btnAuto" type="button" hidden>Reprendre le libellé automatique</button>
+
+      <div class="row">
+        <div><label for="qte">Quantité</label><input type="text" id="qte" value="1" autocomplete="off"></div>
+        <div></div>
+      </div>
+      <label for="indication">Indication clinique</label>
+      <input type="text" id="indication" autocomplete="off">
+      <label for="objectif">Objectif</label>
+      <input type="text" id="objectif" autocomplete="off">
+      <label for="precisions">Précisions complémentaires (facultatif)</label>
+      <input type="text" id="precisions" placeholder="ex. à retirer pour la toilette" autocomplete="off">
+    </fieldset>
+
+    <fieldset>
+      <legend>Port et mentions</legend>
+      <div class="opt muted"><input type="checkbox" id="incPort"><label for="incPort">Afficher les consignes de port</label></div>
+      <div class="row">
+        <div><select id="rythme" aria-label="Rythme de port">
+          <option value="">Rythme non précisé</option>
+          <option value="continu jour et nuit">Continu, jour et nuit</option>
+          <option value="en journée uniquement">En journée</option>
+          <option value="nocturne uniquement">Nocturne</option>
+          <option value="lors des activités sportives et à l'effort">À l'effort / sport</option>
+          <option value="en cas de douleur ou lors de la mobilisation">Si douleur / mobilisation</option>
+        </select></div>
+        <div><input type="text" id="dureePort" placeholder="durée, ex. 6 semaines" aria-label="Durée de port" autocomplete="off"></div>
+      </div>
+      <div class="opt muted"><input type="checkbox" id="incValid"><label for="incValid">Afficher la durée de validité</label></div>
+      <input type="text" id="valid" placeholder="ex. 3 mois" autocomplete="off">
+
+      <div class="opt"><input type="checkbox" id="nonsubst"><label for="nonsubst">Non substituable</label></div>
+      <div class="opt"><input type="checkbox" id="urgent"><label for="urgent">Urgent</label></div>
+      <div class="opt"><input type="checkbox" id="ald"><label for="ald">Prise en charge à 100 % (ALD)</label></div>
+      <div class="note">La liste des dispositifs prescriptibles par un masseur-kinésithérapeute est fixée par arrêté. Vérifie que le dispositif et sa structure y figurent avant d'imprimer.</div>
+    </fieldset>
+
+    <details>
+      <summary>Mes informations (prescripteur)</summary>
+      <label for="pNom">Nom</label><input type="text" id="pNom" value="Adrien HERVET">
+      <label for="pProf">Profession</label><input type="text" id="pProf" value="Masseur-kinésithérapeute">
+      <label for="pAdr">Adresse</label><input type="text" id="pAdr" value="17 ter rue Wenceslas Coutellier, 60600 Clermont">
+      <div class="row">
+        <div><label for="pTel">Téléphone</label><input type="text" id="pTel" value="03 44 19 56 96"></div>
+        <div><label for="pLieu">Ville (avant la date)</label><input type="text" id="pLieu" value="Clermont"></div>
+      </div>
+      <div class="row">
+        <div><label for="pRpps">N° RPPS</label><input type="text" id="pRpps" value="10106347619"></div>
+        <div><label for="pAm">N° AM</label><input type="text" id="pAm" value="60 7002789"></div>
+      </div>
+      <div class="opt muted"><input type="checkbox" id="incAm" checked><label for="incAm">Afficher le n° AM</label></div>
+      <div class="opt muted"><input type="checkbox" id="incTel" checked><label for="incTel">Afficher le téléphone</label></div>
+    </details>
+  </div>
+
+  <div class="sheet-wrap"><div class="paper" id="paper" aria-label="Aperçu de l'ordonnance"></div></div>
+</div>
+
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+
+  // Segments : nom, genre (m/f)
+  var SEGS = [
+    ["genou","m"],["cheville","f"],["pied","m"],["poignet","m"],["main","f"],["pouce","m"],
+    ["coude","m"],["épaule","f"],["hanche","f"],["cuisse","f"],["mollet","m"],["avant-bras","m"]
+  ];
+  var segSel = $("seg");
+  SEGS.forEach(function(s,i){ var o=document.createElement("option"); o.value=i; o.textContent=s[0]; segSel.appendChild(o); });
+
+  var RIG = {"":"", souple:"souple", rigide:"rigide", articulee:"articulée", rigart:"rigide ou articulée", thermo:"thermoformable"};
+  var FCT = {"":"", stab:"de fonction (stabilisation)", immo:"de fonction (immobilisation)", decharge:"de fonction (décharge)",
+             repos:"de repos", posture:"de posture", corr:"de correction orthopédique"};
+  var CONF = {"":"", serie:"de série", mesure:"sur mesure"};
+  var OPTS = [["o_lat","renforts latéraux"],["o_rot","contrôle des rotations"],["o_rotule","ouverture rotulienne"],
+              ["o_sangle","sangles de maintien"],["o_tuteur","tuteurs latéraux articulés"],["o_ext","butée d'extension"]];
+
+  var PRESETS = [
+    {label:"Aucun (je remplis moi-même)", set:null},
+    {label:"Genou : orthèse articulée, lésion méniscale",
+     set:{kind:"orth",seg:"genou",rig:"articulee",fonction:"stab",conf:"serie",ind:"lésion méniscale du genou {c}",obj:"stabiliser le genou et éviter les mouvements de rotation",qte:"1"}},
+    {label:"Cheville : orthèse de stabilisation",
+     set:{kind:"orth",seg:"cheville",rig:"",fonction:"stab",conf:"serie",ind:"",obj:"stabiliser la cheville",qte:"1"}},
+    {label:"Poignet : attelle de repos nocturne",
+     set:{kind:"attelle",seg:"poignet",rig:"",fonction:"repos",conf:"serie",ind:"",obj:"",qte:"1",port:true,rythme:"nocturne uniquement"}},
+    {label:"Genou : contention souple élastique",
+     set:{kind:"contention",seg:"genou",ind:"",obj:"",qte:"1"}},
+    {label:"Ceinture de soutien lombaire",
+     set:{kind:"lombaire",ind:"",obj:"",qte:"1"}},
+    {label:"Cannes anglaises",
+     set:{kind:"marche",aide:"Cannes anglaises (béquilles)",ind:"",obj:"",qte:"1 paire"}}
+  ];
+  var presetSel = $("preset");
+  PRESETS.forEach(function(p,i){ var o=document.createElement("option"); o.value=i; o.textContent=p.label; presetSel.appendChild(o); });
+
+  var manual = false;   // libellé modifié à la main
+  var indTpl = null;    // gabarit d'indication avec {c}
+
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  function today(){
+    var d = new Date(), p = function(n){ return (n<10?"0":"")+n; };
+    return p(d.getDate())+"/"+p(d.getMonth()+1)+"/"+d.getFullYear();
+  }
+  function sideWord(g, v){
+    if(v==="droit") return g==="f" ? "droite" : "droit";
+    if(v==="gauche") return "gauche";
+    if(v==="bilat") return g==="f" ? "bilatérale" : "bilatéral";
+    return "";
+  }
+  function de(name){ return /^[aeiouéèêâî]/i.test(name) ? "d'" + name : "de " + name; }
+  function seg(){ return SEGS[+segSel.value]; }
+  function usesSeg(k){ return k==="orth" || k==="attelle" || k==="contention"; }
+
+  function subInd(t){
+    var s = seg();
+    var w = sideWord(s[1], $("cote").value);
+    return t.replace(/ ?\{c\}/g, w ? " " + w : "");
+  }
+
+  function checkedOpts(){
+    var out = [];
+    OPTS.forEach(function(o){ if($(o[0]).checked) out.push(o[1]); });
+    var amp = $("amp").value.trim();
+    if(amp) out.push("limitation d'amplitude (" + amp + ")");
+    return out;
+  }
+
+  function autoLabel(){
+    var k = $("kind").value, taille = $("taille").value.trim();
+    var t = "";
+    if(k==="orth" || k==="attelle"){
+      var s = seg(), w = sideWord(s[1], $("cote").value);
+      t = (k==="attelle" ? "Attelle " : "Orthèse ") + de(s[0]) + (w ? " " + w : "");
+      var rig = RIG[$("rig").value]; if(rig) t += " " + rig;
+      var parts = [CONF[$("conf").value], FCT[$("fonction").value]].filter(Boolean);
+      if(parts.length) t += ", " + parts.join(", ");
+      var o = checkedOpts();
+      if(o.length) t += ", avec " + o.join(", ");
+    } else if(k==="contention"){
+      var s2 = seg(), w2 = sideWord(s2[1], $("cote").value);
+      t = "Orthèse de contention souple élastique " + de(s2[0]) + (w2 ? " " + w2 : "") + " de série";
+    } else if(k==="lombaire"){
+      t = "Ceinture de soutien lombaire de série";
+    } else if(k==="collier"){
+      t = "Collier cervical de repos de série";
+    } else if(k==="marche"){
+      t = $("aide").value;
+    }
+    if(t && taille && k!=="marche") t += ", taille " + taille;
+    return t;
+  }
+
+  function updateVisibility(){
+    var k = $("kind").value;
+    document.querySelectorAll("[data-k]").forEach(function(el){
+      el.hidden = el.getAttribute("data-k").split(" ").indexOf(k) === -1;
+    });
+    if(k==="libre") manual = true;
+  }
+
+  function syncLabel(){
+    var k = $("kind").value;
+    if(k==="libre"){ $("btnAuto").hidden = true; return; }
+    if(!manual) $("dispositif").value = autoLabel();
+    $("btnAuto").hidden = !manual;
+  }
+
+  function syncIndication(){
+    if(indTpl !== null && usesSeg($("kind").value)) $("indication").value = subInd(indTpl);
+  }
+
+  function blankH(v){ return v ? esc(v) : '<span class="blank"></span>'; }
+  function blankT(v){ return v ? v : "……………"; }
+
+  function state(){
+    var g = function(id){ return $(id).value.trim(); };
+    var c = function(id){ return $(id).checked; };
+    return {
+      pNom:g("pNom"), pProf:g("pProf"), pAdr:g("pAdr"), pTel:g("pTel"), pLieu:g("pLieu"), pRpps:g("pRpps"), pAm:g("pAm"),
+      incAm:c("incAm"), incTel:c("incTel"),
+      nom:g("nom"), prenom:g("prenom"), ddn:g("ddn"), date:g("date"), nss:g("nss"), incNss:c("incNss"),
+      d:g("dispositif"), ind:g("indication"), obj:g("objectif"), q:g("qte"), prec:g("precisions"),
+      incPort:c("incPort"), rythme:g("rythme"), dureePort:g("dureePort"), valid:g("valid"), incValid:c("incValid"),
+      ns:c("nonsubst"), urg:c("urgent"), ald:c("ald")
+    };
+  }
+
+  function idLines(s){
+    var l2 = s.pAdr;
+    if(s.incTel && s.pTel) l2 += ", tél. " + s.pTel;
+    var l3 = s.pRpps ? "N° RPPS " + s.pRpps : "";
+    if(s.incAm && s.pAm) l3 += (l3 ? ", " : "") + "N° AM " + s.pAm;
+    return {l1: s.pNom, l1b: s.pProf, l2: l2, l3: l3};
+  }
+
+  function corps(s){
+    var main = "Prescrire " + (s.d || "……………");
+    if(s.q) main += ", quantité : " + s.q;
+    if(s.ind) main += ", pour " + s.ind;
+    if(s.obj) main += ", afin de " + s.obj;
+    main += ".";
+    var extra = [];
+    if(s.incPort){
+      var p = [];
+      if(s.rythme) p.push(s.rythme);
+      if(s.dureePort) p.push("pendant " + s.dureePort);
+      extra.push("Port : " + (p.length ? p.join(", ") : "……………") + ".");
+    }
+    if(s.prec) extra.push("Précisions : " + s.prec + ".");
+    if(s.incValid) extra.push("Prescription valable " + (s.valid || "……………") + ".");
+    if(s.ns) extra.push("Non substituable.");
+    if(s.urg) extra.push("Urgent.");
+    if(s.ald) extra.push("Prise en charge à 100 % (ALD).");
+    return main + (extra.length ? " " + extra.join(" ") : "");
+  }
+
+  function patientLine(s){
+    return {
+      h: "Pour <b>" + blankH(s.nom) + " " + blankH(s.prenom) + "</b>, né(e) le " + blankH(s.ddn) +
+         (s.incNss ? ", n° de sécurité sociale " + blankH(s.nss) : "") + " :",
+      t: "Pour " + blankT(s.nom) + " " + blankT(s.prenom) + ", né(e) le " + blankT(s.ddn) +
+         (s.incNss ? ", n° de sécurité sociale " + blankT(s.nss) : "") + " :"
+    };
+  }
+
+  function render(){
+    updateVisibility();
+    syncIndication();
+    syncLabel();
+    var s = state(), id = idLines(s), pl = patientLine(s);
+    $("paper").innerHTML =
+      '<div class="id"><b>' + esc(id.l1) + '</b>' + (id.l1b ? ', ' + esc(id.l1b) : '') + '<br>' +
+      esc(id.l2) + (id.l3 ? '<br>' + esc(id.l3) : '') + '</div><hr>' +
+      '<p class="lieu">' + esc(s.pLieu) + ', le ' + blankH(s.date) + '</p>' +
+      '<h2>ORDONNANCE</h2>' +
+      '<p>' + pl.h + '</p>' +
+      '<p>' + esc(corps(s)) + '</p>' +
+      '<div class="sign">Signature et cachet<div></div></div>';
+  }
+
+  function plainText(){
+    var s = state(), id = idLines(s), pl = patientLine(s);
+    return [
+      id.l1 + (id.l1b ? ", " + id.l1b : ""),
+      id.l2,
+      id.l3,
+      "",
+      s.pLieu + ", le " + blankT(s.date),
+      "",
+      "ORDONNANCE",
+      "",
+      pl.t,
+      "",
+      corps(s),
+      "",
+      "Signature et cachet"
+    ].filter(function(x,i,a){ return !(x==="" && i>0 && a[i-1]==="" ) && !(x===undefined); }).join("\n");
+  }
+
+  var st = $("status"), timer;
+  function say(msg){ st.textContent = msg; clearTimeout(timer); timer = setTimeout(function(){ st.textContent = ""; }, 3500); }
+
+  function applyPreset(){
+    var p = PRESETS[+presetSel.value];
+    if(!p.set) return;
+    var v = p.set;
+    manual = false;
+    $("kind").value = v.kind;
+    if(v.seg){ SEGS.forEach(function(s,i){ if(s[0]===v.seg) segSel.value = i; }); }
+    if("rig" in v) $("rig").value = v.rig;
+    if("fonction" in v) $("fonction").value = v.fonction;
+    if("conf" in v) $("conf").value = v.conf;
+    if(v.aide) $("aide").value = v.aide;
+    OPTS.forEach(function(o){ $(o[0]).checked = false; });
+    $("amp").value = ""; $("taille").value = "";
+    $("indication").value = v.ind ? subInd(v.ind) : "";
+    indTpl = v.ind ? v.ind : null;
+    $("objectif").value = v.obj || "";
+    $("qte").value = v.qte || "1";
+    if(v.port){ $("incPort").checked = true; }
+    if(v.rythme){ $("rythme").value = v.rythme; }
+    render();
+  }
+
+  $("btnPrint").addEventListener("click", function(){ window.print(); });
+  $("btnCopy").addEventListener("click", function(){
+    var t = plainText();
+    function fallback(){
+      var ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand("copy"); say("Texte copié."); }catch(e){ say("Copie impossible : sélectionne le texte de l'aperçu."); }
+      document.body.removeChild(ta);
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(function(){ say("Texte copié."); }, fallback);
+    } else { fallback(); }
+  });
+  $("btnNew").addEventListener("click", function(){
+    ["nom","prenom","ddn","nss","patSearch"].forEach(function(k){ $(k).value = ""; }); $("patHint").textContent = "";
+    $("date").value = today();
+    render(); $("nom").focus(); say("Champs patient effacés.");
+  });
+  $("btnAuto").addEventListener("click", function(){ manual = false; render(); });
+
+  presetSel.addEventListener("change", applyPreset);
+  $("kind").addEventListener("change", function(){
+    if($("kind").value!=="libre") manual = false;
+    render();
+  });
+  $("dispositif").addEventListener("input", function(){ manual = true; render(); });
+  $("indication").addEventListener("input", function(){ indTpl = null; });
+
+  document.querySelectorAll(".form input, .form textarea, .form select").forEach(function(el){
+    if(el.id==="preset" || el.id==="kind") return;
+    el.addEventListener("input", render);
+    el.addEventListener("change", render);
+  });
+
+
+  // ── Agenda : liste des patients (lecture seule) ──
+  var patients = {};
+  function ddnFr(iso){ var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||""); return m ? m[3]+"/"+m[2]+"/"+m[1] : (iso||""); }
+  function patLabel(r){ return ((r.nom||"").toUpperCase() + " " + (r.prenom||"")).trim(); }
+  function loadPatients(list){
+    patients = {};
+    var arr = Array.isArray(list) ? list : Object.values(list || {});
+    arr.forEach(function(r){
+      if(!r || (!r.nom && !r.prenom)) return;
+      var k = patLabel(r).toLowerCase(), stamp = (r.date||"") + (r.heure||"");
+      if(!patients[k] || stamp > patients[k]._s){ var c = Object.assign({}, r); c._s = stamp; patients[k] = c; }
+    });
+    var dl = $("patList"); dl.innerHTML = "";
+    Object.keys(patients).sort().forEach(function(k){ var o = document.createElement("option"); o.value = patLabel(patients[k]); dl.appendChild(o); });
+  }
+  $("patSearch").addEventListener("change", function(){
+    var r = patients[$("patSearch").value.trim().toLowerCase()];
+    if(!r){ $("patHint").textContent = ""; return; }
+    $("nom").value = r.nom || "";
+    $("prenom").value = r.prenom || "";
+    $("ddn").value = ddnFr(r.ddn);
+    $("nss").value = r.nss || "";
+    var notes = [];
+    if(!r.ddn) notes.push("date de naissance absente de l'agenda");
+    if(r.nss) notes.push("n° de sécurité sociale trouvé : coche « Afficher » pour l'imprimer");
+    else notes.push("aucun n° de sécurité sociale dans l'agenda");
+    $("patHint").textContent = notes.join(" ; ") + ".";
+    render();
+  });
+
+  // ── Firebase (même projet que l'agenda) ──
+  var firebaseConfig = {
+    apiKey: "AIzaSyDAXysp9GV0ELMut66s6TkHO7QnkI6Bxzo",
+    authDomain: "agenda-kine-139f7.firebaseapp.com",
+    databaseURL: "https://agenda-kine-139f7-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "agenda-kine-139f7",
+    storageBucket: "agenda-kine-139f7.firebasestorage.app",
+    messagingSenderId: "707353671008",
+    appId: "1:707353671008:web:112a336521506579715a05"
+  };
+  if(typeof firebase !== "undefined"){
+    firebase.initializeApp(firebaseConfig);
+    var auth = firebase.auth(), db = firebase.database();
+    $("loginBtn").addEventListener("click", function(){
+      auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function(err){
+        $("loginError").textContent = "Connexion impossible : " + err.message;
+      });
+    });
+    auth.onAuthStateChanged(function(user){
+      $("loginScreen").style.display = user ? "none" : "flex";
+      $("appWrap").style.display = user ? "block" : "none";
+      if(user){ db.ref("rdvs").on("value", function(snap){ loadPatients(snap.val()); }); }
+    });
+  } else {
+    $("loginError").textContent = "Firebase n'a pas pu se charger. Vérifie la connexion internet.";
+  }
+
+  $("date").value = today();
+  presetSel.value = 1;
+  $("cote").value = "droit";
+  applyPreset();
+})();
+</script>
+</body>
+</html>
