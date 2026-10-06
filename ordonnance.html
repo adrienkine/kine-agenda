@@ -52,6 +52,9 @@
   .paper .lieu{text-align:right;margin:0 0 18px}
   .paper h2{text-align:center;letter-spacing:.14em;font-size:15pt;margin:0 0 22px}
   .paper p{margin:0 0 14px}
+  .paper .rx{margin:0 0 14px 0}
+  .paper .rx p{margin:0 0 5px}
+  .paper .rx p.item{font-weight:600;margin-bottom:8px}
   .blank{display:inline-block;min-width:80px;border-bottom:1px dotted #444;height:1em;vertical-align:baseline}
   .sign{margin-top:36px;margin-left:auto;width:230px;font-size:11pt}
   .sign div{border:1px solid #777;height:90px;margin-top:6px}
@@ -132,13 +135,33 @@
 
       <label for="kind">Type de dispositif</label>
       <select id="kind">
-        <option value="orth">Orthèse</option>
-        <option value="attelle">Attelle</option>
-        <option value="contention">Contention souple élastique</option>
-        <option value="lombaire">Ceinture de soutien lombaire</option>
-        <option value="collier">Collier cervical de repos</option>
-        <option value="marche">Aide à la déambulation</option>
-        <option value="libre">Libellé libre</option>
+        <optgroup label="Orthopédie">
+          <option value="orth">Orthèse</option>
+          <option value="attelle">Attelle</option>
+          <option value="contention">Orthèse de contention souple élastique</option>
+          <option value="c_cont">Contention et strapping (bandes, bas, manchons…)</option>
+          <option value="lombaire">Ceinture de soutien lombaire</option>
+          <option value="collier">Collier cervical de repos</option>
+          <option value="c_ortho">Sangles, chaussures thérapeutiques</option>
+        </optgroup>
+        <optgroup label="Mobilité et domicile">
+          <option value="marche">Aide à la déambulation</option>
+          <option value="c_mob">Fauteuil roulant (location)</option>
+          <option value="c_dom">Lit, escarres, transferts, aides techniques</option>
+        </optgroup>
+        <optgroup label="Électrothérapie, physiothérapie">
+          <option value="c_electro">TENS, électrostimulation, périnée, cryo</option>
+        </optgroup>
+        <optgroup label="Respiratoire et mesure">
+          <option value="c_resp">Rééducation respiratoire, ORL</option>
+          <option value="c_mesure">Appareils d'automesure</option>
+        </optgroup>
+        <optgroup label="Médicaments et soins">
+          <option value="c_med">Antalgique, myorelaxant, substitut nicotinique…</option>
+        </optgroup>
+        <optgroup label="Autre">
+          <option value="libre">Libellé libre</option>
+        </optgroup>
       </select>
 
       <div data-k="marche" hidden>
@@ -149,6 +172,21 @@
           <option>Béquilles axillaires</option>
           <option>Déambulateur</option>
         </select>
+      </div>
+
+      <div data-k="c_cont c_ortho c_mob c_dom c_electro c_resp c_mesure c_med" hidden>
+        <label for="item">Produit</label>
+        <select id="item"></select>
+      </div>
+      <div data-k="c_mob c_dom c_electro c_resp c_mesure" hidden>
+        <div class="opt"><input type="checkbox" id="loc"><label for="loc">À la location</label></div>
+        <input type="text" id="locDuree" placeholder="durée de location, ex. 1 mois" autocomplete="off">
+      </div>
+      <div data-k="c_med" hidden>
+        <label for="poso">Posologie</label>
+        <input type="text" id="poso" placeholder="ex. 1 comprimé jusqu'à 3 fois par jour, espacer les prises d'au moins 6 h" autocomplete="off">
+        <label for="dureeTt">Durée du traitement</label>
+        <input type="text" id="dureeTt" placeholder="ex. 5 jours" autocomplete="off">
       </div>
 
       <div data-k="orth attelle contention">
@@ -229,6 +267,12 @@
 
     <fieldset>
       <legend>Port et mentions</legend>
+      <label for="intro">Formule d'introduction</label>
+      <select id="intro">
+        <option value="">Aucune (libellé seul, usage courant)</option>
+        <option value="Je prescris :">Je prescris :</option>
+        <option value="Prescription :">Prescription :</option>
+      </select>
       <div class="opt muted"><input type="checkbox" id="incPort"><label for="incPort">Afficher les consignes de port</label></div>
       <div class="row">
         <div><select id="rythme" aria-label="Rythme de port">
@@ -247,7 +291,7 @@
       <div class="opt"><input type="checkbox" id="nonsubst"><label for="nonsubst">Non substituable</label></div>
       <div class="opt"><input type="checkbox" id="urgent"><label for="urgent">Urgent</label></div>
       <div class="opt"><input type="checkbox" id="ald"><label for="ald">Prise en charge à 100 % (ALD)</label></div>
-      <div class="note">La liste des dispositifs prescriptibles par un masseur-kinésithérapeute est fixée par arrêté. Vérifie que le dispositif et sa structure y figurent avant d'imprimer.</div>
+      <div class="note">Liste des produits prescriptibles par un masseur-kinésithérapeute : arrêté du 14 septembre 2026 (JO du 16/09/2026), qui remplace celui du 9 janvier 2006. Location de fauteuil roulant limitée à moins de 3 mois. Pour un médicament, indique la DCI, le dosage, la forme, la posologie et la durée.</div>
     </fieldset>
 
     <details>
@@ -307,6 +351,54 @@
     {label:"Cannes anglaises",
      set:{kind:"marche",aide:"Cannes anglaises (béquilles)",ind:"",obj:"",qte:"1 paire"}}
   ];
+  // Catalogue (arrêté du 14 septembre 2026) : [libellé, location par défaut]
+  var CATALOG = {
+    c_cont: [["Bande de contention souple élastique"],["Bande de contention à allongement court"],["Manchon de contention"],
+             ["Chaussettes de contention"],["Bas-cuisses de contention"],["Collant de contention"],
+             ["Bande adhésive souple (strapping)"],["Bande adhésive rigide (taping)"],["Sparadrap"]],
+    c_ortho: [["Sangle thoracique de série"],["Sangle abdominale de série"],
+              ["Chaussures thérapeutiques de série à usage temporaire"],["Chaussures thérapeutiques de série à usage prolongé"]],
+    c_mob: [["Fauteuil roulant manuel non modulaire",1],["Fauteuil roulant manuel modulaire",1],["Fauteuil roulant à pousser",1],
+            ["Poussette",1],["Fauteuil roulant électrique",1]],
+    c_dom: [["Lit médicalisé",1],["Matelas à air d'aide à la prévention des escarres",1],["Matelas d'aide à la prévention des escarres en mousse"],
+            ["Coussin d'aide à la prévention des escarres"],["Soulève-malade",1],["Harnais pour soulève-malade"],["Potence"],
+            ["Barre latérale de redressement"],["Verticalisateur",1],["Drap de glisse"],["Planche de transfert"],["Guidon de transfert"],
+            ["Rehausseur de WC"],["Barre d'appui pour douche"],["Fauteuil de repos"],["Couverts adaptés"]],
+    c_electro: [["Neurostimulateur électrique transcutané (TENS)",1],["Électrostimulateur excitomoteur",1],
+                ["Électrodes cutanées pour électrostimulation"],["Boîtier de stimulation périnéo-sphinctérienne",1],
+                ["Sonde périnéale pour électrostimulation (incontinence urinaire)"],["Sonde ano-rectale pour électrostimulation"],
+                ["Arthromoteur",1],["Appareil de cryocompression",1],["Compresses de cryothérapie / thermothérapie"],["Patchs chauffants"]],
+    c_resp: [["Débitmètre de pointe"],["Spiromètre incitatif débitmétrique"],["Relaxateur de pression"],
+             ["Dispositif mécanique de désencombrement bronchique"],["Chambre d'inhalation"],["Aspirateur trachéal",1],
+             ["Sondes d'aspiration trachéale"],["Dispositif de lavage de nez"],["Dispositif de rééducation des mouvements mandibulaires"]],
+    c_mesure: [["Tensiomètre automatique"],["Oxymètre de pouls (saturomètre)"]],
+    c_med: [["Paracétamol 1 g, comprimé"],["Paracétamol 500 mg, gélule"],["Myorelaxant : DCI, dosage, forme"],
+            ["Substitut nicotinique, dispositif transdermique : DCI, dosage"],["Substitut nicotinique, forme orale : DCI, dosage"],
+            ["Sérum physiologique isotonique en unidoses"],["Sérum salé hypertonique pour nébulisation"],["Mucolytique : DCI, dosage, forme"],
+            ["Antiseptique local non iodé : DCI"],["Crème anesthésiante locale : DCI"],["Crème émolliente (glycérol, vaseline, paraffine)"],
+            ["Crème cicatrisante"],["Pansement cicatrisant"]]
+  };
+  function isCat(k){ return k.indexOf("c_")===0; }
+  function curItem(){ var l = CATALOG[$("kind").value]; return l ? l[+$("item").value] || l[0] : null; }
+  function fillItems(){
+    var l = CATALOG[$("kind").value], sel = $("item"); sel.innerHTML = "";
+    if(!l) return;
+    l.forEach(function(it,i){ var o=document.createElement("option"); o.value=i; o.textContent=it[0]; sel.appendChild(o); });
+    $("loc").checked = !!l[0][1];
+  }
+  function selectItem(label){
+    var l = CATALOG[$("kind").value]; if(!l) return;
+    l.forEach(function(it,i){ if(it[0]===label) $("item").value = i; });
+    $("loc").checked = !!curItem()[1];
+  }
+  PRESETS.push(
+    {label:"TENS à la location",
+     set:{kind:"c_electro",item:"Neurostimulateur électrique transcutané (TENS)",locDuree:"1 mois",ind:"",obj:"",qte:"1"}},
+    {label:"Fauteuil roulant manuel (location)",
+     set:{kind:"c_mob",item:"Fauteuil roulant manuel non modulaire",locDuree:"1 mois",ind:"",obj:"",qte:"1"}},
+    {label:"Paracétamol 1 g",
+     set:{kind:"c_med",item:"Paracétamol 1 g, comprimé",poso:"1 comprimé jusqu'à 3 fois par jour, en espaçant les prises d'au moins 6 heures",dureeTt:"5 jours",ind:"",obj:"",qte:"1 boîte"}}
+  );
   var presetSel = $("preset");
   PRESETS.forEach(function(p,i){ var o=document.createElement("option"); o.value=i; o.textContent=p.label; presetSel.appendChild(o); });
 
@@ -355,13 +447,19 @@
       if(o.length) t += ", avec " + o.join(", ");
     } else if(k==="contention"){
       var s2 = seg(), w2 = sideWord(s2[1], $("cote").value);
-      t = "Orthèse de contention souple élastique " + de(s2[0]) + (w2 ? " " + w2 : "") + " de série";
+      t = "Orthèse de contention souple élastique " + de(s2[0]) + (w2 ? " " + w2 : "") + ", de série";
     } else if(k==="lombaire"){
       t = "Ceinture de soutien lombaire de série";
     } else if(k==="collier"){
       t = "Collier cervical de repos de série";
     } else if(k==="marche"){
       t = $("aide").value;
+    } else if(isCat(k)){
+      var it = curItem(); t = it ? it[0] : "";
+      if(k!=="c_med" && $("loc").checked){
+        var ld = $("locDuree").value.trim();
+        t += ", à la location" + (ld ? " pour " + ld : "");
+      }
     }
     if(t && taille && k!=="marche") t += ", taille " + taille;
     return t;
@@ -398,7 +496,8 @@
       nom:g("nom"), prenom:g("prenom"), ddn:g("ddn"), date:g("date"), nss:g("nss"), incNss:c("incNss"),
       d:g("dispositif"), ind:g("indication"), obj:g("objectif"), q:g("qte"), prec:g("precisions"),
       incPort:c("incPort"), rythme:g("rythme"), dureePort:g("dureePort"), valid:g("valid"), incValid:c("incValid"),
-      ns:c("nonsubst"), urg:c("urgent"), ald:c("ald")
+      ns:c("nonsubst"), urg:c("urgent"), ald:c("ald"),
+      intro:g("intro"), med:$("kind").value==="c_med", poso:g("poso"), dureeTt:g("dureeTt")
     };
   }
 
@@ -410,25 +509,32 @@
     return {l1: s.pNom, l1b: s.pProf, l2: l2, l3: l3};
   }
 
+  function lc1(v){ return /^[A-ZÀ-Ý][a-zà-ÿ]/.test(v) ? v.charAt(0).toLowerCase() + v.slice(1) : v; }
+  function dot(v){ return /[.!?…]$/.test(v) ? v : v + "."; }
+  // Renvoie les lignes de la prescription ; la première ligne « item » est le produit
   function corps(s){
-    var main = "Prescrire " + (s.d || "……………");
-    if(s.q) main += ", quantité : " + s.q;
-    if(s.ind) main += ", pour " + s.ind;
-    if(s.obj) main += ", afin de " + s.obj;
-    main += ".";
-    var extra = [];
+    var L = [];
+    if(s.intro) L.push({c:"intro", t:s.intro});
+    L.push({c:"item", t: s.d ? dot(s.d) : "……………"});
+    if(s.q) L.push({t:"Quantité : " + dot(s.q)});
+    if(s.med){
+      L.push({t:"Posologie : " + (s.poso ? dot(s.poso) : "……………")});
+      L.push({t:"Durée du traitement : " + (s.dureeTt ? dot(s.dureeTt) : "……………")});
+    }
+    if(s.ind) L.push({t:"Indication : " + dot(lc1(s.ind))});
+    if(s.obj) L.push({t:"Objectif : " + dot(lc1(s.obj))});
     if(s.incPort){
       var p = [];
       if(s.rythme) p.push(s.rythme);
       if(s.dureePort) p.push("pendant " + s.dureePort);
-      extra.push("Port : " + (p.length ? p.join(", ") : "……………") + ".");
+      L.push({t:"Port : " + (p.length ? p.join(", ") + "." : "……………")});
     }
-    if(s.prec) extra.push("Précisions : " + s.prec + ".");
-    if(s.incValid) extra.push("Prescription valable " + (s.valid || "……………") + ".");
-    if(s.ns) extra.push("Non substituable.");
-    if(s.urg) extra.push("Urgent.");
-    if(s.ald) extra.push("Prise en charge à 100 % (ALD).");
-    return main + (extra.length ? " " + extra.join(" ") : "");
+    if(s.prec) L.push({t:"Précisions : " + dot(lc1(s.prec))});
+    if(s.incValid) L.push({t:"Prescription valable " + (s.valid || "……………") + "."});
+    if(s.ns) L.push({t:"Non substituable."});
+    if(s.urg) L.push({t:"Urgent."});
+    if(s.ald) L.push({t:"Prise en charge à 100 % (ALD)."});
+    return L;
   }
 
   function patientLine(s){
@@ -451,7 +557,7 @@
       '<p class="lieu">' + esc(s.pLieu) + ', le ' + blankH(s.date) + '</p>' +
       '<h2>ORDONNANCE</h2>' +
       '<p>' + pl.h + '</p>' +
-      '<p>' + esc(corps(s)) + '</p>' +
+      '<div class="rx">' + corps(s).map(function(l){ return '<p' + (l.c ? ' class="' + l.c + '"' : '') + '>' + esc(l.t) + '</p>'; }).join("") + '</div>' +
       '<div class="sign">Signature et cachet<div></div></div>';
   }
 
@@ -468,7 +574,7 @@
       "",
       pl.t,
       "",
-      corps(s),
+      corps(s).map(function(l){ return l.t; }).join("\n"),
       "",
       "Signature et cachet"
     ].filter(function(x,i,a){ return !(x==="" && i>0 && a[i-1]==="" ) && !(x===undefined); }).join("\n");
@@ -488,6 +594,10 @@
     if("fonction" in v) $("fonction").value = v.fonction;
     if("conf" in v) $("conf").value = v.conf;
     if(v.aide) $("aide").value = v.aide;
+    fillItems();
+    if(v.item) selectItem(v.item);
+    $("locDuree").value = v.locDuree || "";
+    $("poso").value = v.poso || ""; $("dureeTt").value = v.dureeTt || "";
     OPTS.forEach(function(o){ $(o[0]).checked = false; });
     $("amp").value = ""; $("taille").value = "";
     $("indication").value = v.ind ? subInd(v.ind) : "";
@@ -519,8 +629,10 @@
   $("btnAuto").addEventListener("click", function(){ manual = false; render(); });
 
   presetSel.addEventListener("change", applyPreset);
+  $("item").addEventListener("change", function(){ var it = curItem(); if(it) $("loc").checked = !!it[1]; manual = false; });
   $("kind").addEventListener("change", function(){
     if($("kind").value!=="libre") manual = false;
+    fillItems();
     render();
   });
   $("dispositif").addEventListener("input", function(){ manual = true; render(); });
